@@ -1,14 +1,16 @@
 const EmailLog = require('../models/EmailLog');
+const path = require('path');
+const fs = require('fs');
 
 const logEmail = async (req, res) => {
   try {
     console.log('📧 Received email log request');
     console.log('Request body:', req.body);
     
-    const { to, subject, body, type, senderName, attachments = [] } = req.body; // Add senderName
+    const { to, subject, body, type, senderName, attachments = [] } = req.body;
     
     // Validate required fields
-    if (!to || !subject || !body || !senderName) { // Add senderName validation
+    if (!to || !subject || !body || !senderName) {
       console.log('❌ Missing required fields');
       return res.status(400).json({
         success: false,
@@ -16,14 +18,39 @@ const logEmail = async (req, res) => {
       });
     }
 
+    // Process file attachments
+    const savedFiles = [];
+    
+    if (attachments && attachments.length > 0) {
+      for (const attachment of attachments) {
+        if (attachment.fileData) {
+          // Save base64 file data to disk
+          const fileBuffer = Buffer.from(attachment.fileData, 'base64');
+          const fileName = `${Date.now()}-${attachment.name}`;
+          const filePath = path.join(__dirname, '../uploads', fileName);
+          
+          fs.writeFileSync(filePath, fileBuffer);
+          savedFiles.push({
+            originalName: attachment.name,
+            savedName: fileName,
+            path: filePath,
+            size: attachment.size
+          });
+          
+          console.log(`💾 Saved file: ${fileName}`);
+        }
+      }
+    }
+
     const logData = {
       to_email: to,
       subject,
       body,
       type: type || 'Communication',
-      sender_name: senderName, // Map to database column name
-      attachment_count: attachments.length,
-      attachment_names: attachments.map(file => file.name),
+      sender_name: senderName,
+      attachment_count: savedFiles.length,
+      attachment_names: savedFiles.map(file => file.originalName),
+      attachment_paths: savedFiles.map(file => file.savedName),
       ip_address: req.ip || req.connection.remoteAddress,
       user_agent: req.get('User-Agent') || 'Unknown'
     };
@@ -33,11 +60,15 @@ const logEmail = async (req, res) => {
     const savedLog = await EmailLog.create(logData);
     
     console.log('✅ Email logged successfully:', savedLog.id);
+    console.log('📎 Files saved:', savedFiles.length);
     
     res.status(201).json({
       success: true,
       message: 'Email logged successfully',
-      data: savedLog
+      data: {
+        ...savedLog,
+        savedFiles: savedFiles.map(f => f.originalName)
+      }
     });
   } catch (error) {
     console.error('❌ Error logging email:', error);
@@ -90,8 +121,32 @@ const getStats = async (req, res) => {
   }
 };
 
+// Add a new endpoint to get attachment files
+const getAttachment = async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const filePath = path.join(__dirname, '../uploads', filename);
+    
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).json({
+        success: false,
+        message: 'File not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error serving file:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error serving file'
+    });
+  }
+};
+
 module.exports = {
   logEmail,
   getEmailLogs,
-  getStats
+  getStats,
+  getAttachment
 };

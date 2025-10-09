@@ -8,17 +8,18 @@ class EmailLog {
         subject,
         body,
         type = 'Communication',
-        sender_name, // Add sender_name
+        sender_name,
         attachment_count = 0,
         attachment_names = [],
+        attachment_paths = [],
         ip_address,
         user_agent
       } = logData;
 
       const query = `
         INSERT INTO email_logs 
-        (to_email, subject, body, type, sender_name, attachment_count, attachment_names, ip_address, user_agent)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (to_email, subject, body, type, sender_name, attachment_count, attachment_names, attachment_paths, ip_address, user_agent)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
       `;
 
@@ -27,9 +28,10 @@ class EmailLog {
         subject,
         body,
         type,
-        sender_name, // Add sender_name
+        sender_name,
         attachment_count,
         attachment_names,
+        attachment_paths,
         ip_address,
         user_agent
       ];

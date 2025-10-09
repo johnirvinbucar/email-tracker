@@ -15,7 +15,7 @@ const EmailForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [tempFormData, setTempFormData] = useState(null); // Store form data temporarily
+  const [savedLogId, setSavedLogId] = useState(null);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -27,7 +27,27 @@ const EmailForm = () => {
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
-    setAttachments(prev => [...prev, ...files]);
+    
+    // Read files as base64 and store with file info
+    const filePromises = files.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve({
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            fileData: e.target.result.split(',')[1] // Remove data:application/...;base64, prefix
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(filePromises).then(newFiles => {
+      setAttachments(prev => [...prev, ...newFiles]);
+    });
+
     e.target.value = '';
   };
 
@@ -37,70 +57,75 @@ const EmailForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Show confirmation dialog FIRST
-    setShowConfirmation(true);
+    setIsSubmitting(true);
+    setMessage('');
+
+    try {
+      // Log the email to our database with file data
+      const response = await emailService.logEmail({
+        ...formData,
+        attachments
+      });
+
+      // Store the saved log ID for potential updates
+      setSavedLogId(response.data.data.id);
+
+      // Create mailto URL for Outlook
+      let mailtoUrl = `mailto:${encodeURIComponent(formData.to)}`;
+      mailtoUrl += `?subject=${encodeURIComponent(formData.subject)}`;
+      
+      // Add attachment note to body if there are attachments
+      let finalBody = formData.body;
+      if (attachments.length > 0) {
+        finalBody += '\n\n---\nAttachments:\n';
+        attachments.forEach(file => {
+          finalBody += `- ${file.name}\n`;
+        });
+        finalBody += '\nPlease remember to manually attach these files in your email client.';
+      }
+      
+      mailtoUrl += `&body=${encodeURIComponent(finalBody)}`;
+      
+      // Open Outlook IMMEDIATELY
+      window.location.href = mailtoUrl;
+      
+      // Show confirmation dialog AFTER opening Outlook
+      setTimeout(() => {
+        setShowConfirmation(true);
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error logging email:', error);
+      setMessage('Failed to log email. Please try again.');
+      setIsSubmitting(false);
+    }
   };
 
-  const handleConfirmation = async (confirmed) => {
+  const handleConfirmation = (confirmed) => {
     setShowConfirmation(false);
     
     if (confirmed) {
-      setIsSubmitting(true);
-      setMessage('');
-
-      try {
-        // Log the email to our database
-        await emailService.logEmail({
-          ...formData,
-          attachments
+      setMessage('Thank you for confirming! Email was sent successfully.');
+      
+      // Reset form after confirmation
+      setTimeout(() => {
+        setFormData({
+          senderName: '',
+          to: '',
+          subject: '',
+          body: 'Hello,\n\nI hope this email finds you well.\n\nBest regards,\n[Your Name]',
+          type: 'Communication'
         });
-
-        // Create mailto URL for Outlook
-        let mailtoUrl = `mailto:${encodeURIComponent(formData.to)}`;
-        mailtoUrl += `?subject=${encodeURIComponent(formData.subject)}`;
-        
-        // Add attachment note to body if there are attachments
-        let finalBody = formData.body;
-        if (attachments.length > 0) {
-          finalBody += '\n\n---\nAttachments:\n';
-          attachments.forEach(file => {
-            finalBody += `- ${file.name}\n`;
-          });
-          finalBody += '\nPlease remember to manually attach these files in your email client.';
-        }
-        
-        mailtoUrl += `&body=${encodeURIComponent(finalBody)}`;
-        
-        // Open Outlook
-        window.location.href = mailtoUrl;
-        
-        setMessage('Email logged successfully! Opening Outlook...');
-        
-        // Reset form after successful submission
-        setTimeout(() => {
-          setFormData({
-            senderName: '',
-            to: '',
-            subject: '',
-            body: 'Hello,\n\nI hope this email finds you well.\n\nBest regards,\n[Your Name]',
-            type: 'Communication'
-          });
-          setAttachments([]);
-          setMessage('');
-        }, 3000);
-        
-      } catch (error) {
-        console.error('Error logging email:', error);
-        setMessage('Failed to log email. Please try again.');
-      } finally {
-        setIsSubmitting(false);
-      }
+        setAttachments([]);
+        setMessage('');
+        setSavedLogId(null);
+      }, 3000);
     } else {
-      // User canceled - don't do anything
-      setMessage('Email submission canceled.');
-      setTimeout(() => setMessage(''), 3000);
+      setMessage('Email was logged but marked as not sent.');
+      setTimeout(() => setMessage(''), 5000);
     }
+    
+    setIsSubmitting(false);
   };
 
   const clearForm = () => {
@@ -113,18 +138,19 @@ const EmailForm = () => {
     });
     setAttachments([]);
     setMessage('');
+    setSavedLogId(null);
   };
 
   return (
     <div className="container">
       <div className="header">
         <div className="header-icon">✉️</div>
-        <h1>Communication Tracking System</h1>
+        <h1>Email Form</h1>
       </div>
       
       <div className="form-container">
         <div className="instructions">
-          <p><strong>Note about attachments:</strong> Files are logged for tracking but cannot be automatically attached due to browser security restrictions. You'll need to manually attach them in your email client.</p>
+          <p><strong>Note:</strong> Files are now saved locally on the server and logged in the database.</p>
         </div>
         
         {message && (
@@ -251,7 +277,7 @@ const EmailForm = () => {
               className={isSubmitting ? 'submitting' : ''}
             >
               <span>📧</span> 
-              {isSubmitting ? 'Logging...' : 'Open in Email Client'}
+              {isSubmitting ? 'Opening...' : 'Open in Email Client'}
             </button>
             <button 
               type="button" 
@@ -267,15 +293,15 @@ const EmailForm = () => {
         {showConfirmation && (
           <div className="confirmation-overlay">
             <div className="confirmation-dialog">
-              <h3>Confirm Email</h3>
-              <p>Are you ready to send this email?</p>
+              <h3>Email Confirmation</h3>
+              <p>Did you send this email in Outlook?</p>
               <div className="email-preview">
                 <p><strong>From:</strong> {formData.senderName}</p>
                 <p><strong>To:</strong> {formData.to}</p>
                 <p><strong>Subject:</strong> {formData.subject}</p>
                 <p><strong>Type:</strong> {formData.type}</p>
                 {attachments.length > 0 && (
-                  <p><strong>Attachments:</strong> {attachments.length} file(s)</p>
+                  <p><strong>Attachments saved:</strong> {attachments.length} file(s)</p>
                 )}
               </div>
               <div className="confirmation-buttons">
@@ -283,13 +309,13 @@ const EmailForm = () => {
                   onClick={() => handleConfirmation(true)}
                   className="confirm-yes"
                 >
-                  Yes, Open Outlook
+                  Yes, I sent it
                 </button>
                 <button 
                   onClick={() => handleConfirmation(false)}
                   className="confirm-no"
                 >
-                  Cancel
+                  No, I didn't send it
                 </button>
               </div>
             </div>
