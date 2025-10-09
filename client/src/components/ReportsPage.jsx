@@ -12,6 +12,8 @@ const ReportsPage = () => {
     endDate: '',
     sender: ''
   });
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
 
   useEffect(() => {
     loadReports();
@@ -21,7 +23,7 @@ const ReportsPage = () => {
   const loadReports = async () => {
     try {
       setLoading(true);
-      const response = await emailService.getLogs(1, 1000); // Get all records
+      const response = await emailService.getLogs(1, 1000);
       setReports(response.data.data.logs);
     } catch (error) {
       console.error('Error loading reports:', error);
@@ -46,6 +48,22 @@ const ReportsPage = () => {
     if (filters.endDate && new Date(report.created_at) > new Date(filters.endDate + 'T23:59:59')) return false;
     return true;
   });
+
+  const handleViewAttachments = (report) => {
+    setSelectedReport(report);
+    setShowAttachmentModal(true);
+  };
+
+  const downloadAttachment = (filename, originalName) => {
+    // Use the API endpoint to download the file
+    const downloadUrl = `http://localhost:5000/api/email/attachment/${filename}`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = originalName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const exportToCSV = () => {
     const headers = ['ID', 'Type', 'Sender', 'To', 'Subject', 'Attachments', 'Date'];
@@ -215,6 +233,7 @@ const ReportsPage = () => {
                 <th>Subject</th>
                 <th>Attachments</th>
                 <th>Date</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -241,6 +260,16 @@ const ReportsPage = () => {
                     )}
                   </td>
                   <td>{new Date(report.created_at).toLocaleDateString()}</td>
+                  <td>
+                    {report.attachment_count > 0 && (
+                      <button 
+                        className="view-attachments-btn"
+                        onClick={() => handleViewAttachments(report)}
+                      >
+                        View Attachments
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -252,6 +281,78 @@ const ReportsPage = () => {
           )}
         </div>
       </div>
+
+      {/* Attachment Modal */}
+      {showAttachmentModal && selectedReport && (
+        <div className="modal-overlay">
+          <div className="attachment-modal">
+            <div className="modal-header">
+              <h3>Attachments for Email #{selectedReport.id}</h3>
+              <button 
+                className="close-modal"
+                onClick={() => setShowAttachmentModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="email-details">
+                <p><strong>From:</strong> {selectedReport.sender_name}</p>
+                <p><strong>To:</strong> {selectedReport.to_email}</p>
+                <p><strong>Subject:</strong> {selectedReport.subject}</p>
+                <p><strong>Date:</strong> {new Date(selectedReport.created_at).toLocaleString()}</p>
+              </div>
+
+              <div className="attachments-list">
+                <h4>Attachments ({selectedReport.attachment_count})</h4>
+                
+                {selectedReport.attachment_names && selectedReport.attachment_names.length > 0 ? (
+                  <div className="attachment-items">
+                    {selectedReport.attachment_names.map((fileName, index) => {
+                      const savedFileName = selectedReport.attachment_paths?.[index] || fileName;
+                      return (
+                        <div key={index} className="attachment-item-modal">
+                          <div className="file-info">
+                            <span className="file-icon">📎</span>
+                            <span className="file-name">{fileName}</span>
+                          </div>
+                          <button 
+                            className="download-btn"
+                            onClick={() => downloadAttachment(savedFileName, fileName)}
+                          >
+                            Download
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="no-attachments">
+                    No attachment information available.
+                  </div>
+                )}
+              </div>
+
+              <div className="email-body-preview">
+                <h4>Email Body</h4>
+                <div className="body-content">
+                  {selectedReport.body}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button 
+                className="close-btn"
+                onClick={() => setShowAttachmentModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

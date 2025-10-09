@@ -3,12 +3,16 @@ import { emailService } from '../services/api.js';
 import './EmailForm.css';
 
 const EmailForm = () => {
+  const [communicationMode, setCommunicationMode] = useState('Email');
   const [formData, setFormData] = useState({
     senderName: '',
     to: '',
     subject: '',
     body: '',
-    type: 'Communication'
+    type: 'Communication',
+    docType: 'IAR',
+    direction: 'OUT',
+    remarks: ''
   });
   
   const [attachments, setAttachments] = useState([]);
@@ -18,41 +22,40 @@ const EmailForm = () => {
   const [savedLogId, setSavedLogId] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
 
-const handleDragOver = (e) => {
-  e.preventDefault();
-  setIsDragging(true);
-};
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
 
-const handleDragLeave = (e) => {
-  e.preventDefault();
-  setIsDragging(false);
-};
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
 
-const handleDrop = (e) => {
-  e.preventDefault();
-  setIsDragging(false);
-  const files = Array.from(e.dataTransfer.files);
-  
-  // Process dropped files
-  const filePromises = files.map(file => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        resolve({
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          fileData: e.target.result.split(',')[1]
-        });
-      };
-      reader.readAsDataURL(file);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    
+    const filePromises = files.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve({
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            fileData: e.target.result.split(',')[1]
+          });
+        };
+        reader.readAsDataURL(file);
+      });
     });
-  });
 
-  Promise.all(filePromises).then(newFiles => {
-    setAttachments(prev => [...prev, ...newFiles]);
-  });
-};
+    Promise.all(filePromises).then(newFiles => {
+      setAttachments(prev => [...prev, ...newFiles]);
+    });
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -62,10 +65,30 @@ const handleDrop = (e) => {
     }));
   };
 
+  const handleCommunicationModeChange = (e) => {
+    const mode = e.target.value;
+    setCommunicationMode(mode);
+    // Reset form data when switching modes
+    if (mode === 'Email') {
+      setFormData(prev => ({
+        ...prev,
+        docType: 'IAR',
+        direction: 'OUT',
+        remarks: ''
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        to: '',
+        subject: '',
+        body: ''
+      }));
+    }
+  };
+
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     
-    // Read files as base64 and store with file info
     const filePromises = files.map(file => {
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -74,7 +97,7 @@ const handleDrop = (e) => {
             name: file.name,
             size: file.size,
             type: file.type,
-            fileData: e.target.result.split(',')[1] // Remove data:application/...;base64, prefix
+            fileData: e.target.result.split(',')[1]
           });
         };
         reader.readAsDataURL(file);
@@ -92,26 +115,23 @@ const handleDrop = (e) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e) => {
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setMessage('');
 
     try {
-      // Log the email to our database with file data
       const response = await emailService.logEmail({
         ...formData,
+        category: 'Email',
         attachments
       });
 
-      // Store the saved log ID for potential updates
       setSavedLogId(response.data.data.id);
 
-      // Create mailto URL for Outlook
       let mailtoUrl = `mailto:${encodeURIComponent(formData.to)}`;
       mailtoUrl += `?subject=${encodeURIComponent(formData.subject)}`;
       
-      // Add attachment note to body if there are attachments
       let finalBody = formData.body;
       if (attachments.length > 0) {
         finalBody += '\n\n---\nAttachments:\n';
@@ -123,10 +143,8 @@ const handleDrop = (e) => {
       
       mailtoUrl += `&body=${encodeURIComponent(finalBody)}`;
       
-      // Open Outlook IMMEDIATELY
       window.location.href = mailtoUrl;
       
-      // Show confirmation dialog AFTER opening Outlook
       setTimeout(() => {
         setShowConfirmation(true);
       }, 1000);
@@ -138,20 +156,60 @@ const handleDrop = (e) => {
     }
   };
 
+  const handleNonEmailSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setMessage('');
+
+    try {
+      const nonEmailData = {
+        senderName: formData.senderName,
+        category: 'Document',
+        docType: formData.docType,
+        direction: formData.direction,
+        remarks: formData.remarks,
+        attachments
+      };
+
+      const response = await emailService.logEmail(nonEmailData);
+
+      setMessage('Document record saved successfully!');
+      
+      // Reset form after success
+      setTimeout(() => {
+        setFormData(prev => ({
+          ...prev,
+          senderName: '',
+          remarks: ''
+        }));
+        setAttachments([]);
+        setMessage('');
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error saving document record:', error);
+      setMessage('Failed to save document record. Please try again.');
+    }
+    
+    setIsSubmitting(false);
+  };
+
   const handleConfirmation = (confirmed) => {
     setShowConfirmation(false);
     
     if (confirmed) {
       setMessage('Thank you for confirming! Email was sent successfully.');
       
-      // Reset form after confirmation
       setTimeout(() => {
         setFormData({
           senderName: '',
           to: '',
           subject: '',
           body: '',
-          type: 'Communication'
+          type: 'Communication',
+          docType: 'IAR',
+          direction: 'OUT',
+          remarks: ''
         });
         setAttachments([]);
         setMessage('');
@@ -171,7 +229,10 @@ const handleDrop = (e) => {
       to: '',
       subject: '',
       body: '',
-      type: 'Communication'
+      type: 'Communication',
+      docType: 'IAR',
+      direction: 'OUT',
+      remarks: ''
     });
     setAttachments([]);
     setMessage('');
@@ -180,21 +241,25 @@ const handleDrop = (e) => {
 
   return (
     <div className="container">
-      {/* <div className="header">
-        <div className="header-icon">✉️</div>
-        <h1>Email Form</h1>
-      </div> */}
-      
       <div className="form-container">
-<div className="instructions">
-  <p><strong>Attachment Instructions:</strong></p>
-  <ol>
-    <li>Files are saved to our tracking system</li>
-    <li>Outlook will open with your email content</li>
-    <li><strong>You must manually reattach the files in Outlook</strong></li>
-    <li>Then send your email as usual</li>
-  </ol>
-</div>
+        {/* Communication Type Section */}
+        <div className="mode-section">
+          <div className="mode-header">
+            <h2>{communicationMode === 'Email' ? '📧 Email Communication' : '📄 Document Record'}</h2>
+          </div>
+          
+          {communicationMode === 'Email' && (
+            <div className="instructions">
+              <p><strong>Attachment Instructions:</strong></p>
+              <ol>
+                <li>Files are saved to our tracking system</li>
+                <li>Outlook will open with your email content</li>
+                <li><strong>You must manually reattach the files in Outlook</strong></li>
+                <li>Then send your email as usual</li>
+              </ol>
+            </div>
+          )}
+        </div>
         
         {message && (
           <div className={`message ${message.includes('successfully') ? 'success' : 'error'}`}>
@@ -202,7 +267,7 @@ const handleDrop = (e) => {
           </div>
         )}
         
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={communicationMode === 'Email' ? handleEmailSubmit : handleNonEmailSubmit}>
           {/* Sender Name Field */}
           <div className="form-group">
             <label htmlFor="senderName">Your Name:</label>
@@ -217,110 +282,179 @@ const handleDrop = (e) => {
             />
           </div>
 
-          {/* Type Field */}
+          {/* Communication Type Field */}
           <div className="form-group">
-            <label htmlFor="type">Type:</label>
+            <label htmlFor="communicationMode">Communication Type:</label>
             <select
-              id="type"
-              name="type"
-              value={formData.type}
-              onChange={handleInputChange}
+              id="communicationMode"
+              name="communicationMode"
+              value={communicationMode}
+              onChange={handleCommunicationModeChange}
               className="type-select"
             >
-              <option value="Communication">Communication</option>
-              <option value="Memo">Memo</option>
+              <option value="Email">Email</option>
+              <option value="Document">Document</option>
             </select>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="to">To:</label>
-            <input
-              type="email"
-              id="to"
-              name="to"
-              value={formData.to}
-              onChange={handleInputChange}
-              placeholder="recipient@example.com"
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="subject">Subject:</label>
-            <input
-              type="text"
-              id="subject"
-              name="subject"
-              value={formData.subject}
-              onChange={handleInputChange}
-              placeholder="Email subject"
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-          <label htmlFor="body">Message:</label>
-          <textarea
-            id="body"
-            name="body"
-            value={formData.body}
-            onChange={handleInputChange}
-            placeholder="Type your message here..."
-            required
-          />
-        </div>
-
-        <div className="attachment-header">
-          <label>Attachment:</label>
-        </div>
-      {/* Attachment Section (outside the form-group) */}
-      <div
-        className={`attachment-section ${isDragging ? 'dragging' : ''}`}
-        onClick={() => document.getElementById('fileInput').click()}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >  
-          <div className="file-input-wrapper">
-            <input
-              type="file"
-              id="fileInput"
-              multiple
-              onChange={handleFileChange}
-              style={{ display: 'none' }} // Hide the actual file input
-            />
-          </div>
-          
-          <div className="attachment-list">
-            {attachments.length === 0 ? (
-              <div className="no-attachments">
-                <div className="click-instruction">Click anywhere in this area to add attachments</div>
-                <div className="drag-instruction">or drag and drop files here</div>
+          {/* Email Mode Fields */}
+          {communicationMode === 'Email' && (
+            <>
+              {/* Type Field */}
+              <div className="form-group">
+                <label htmlFor="type">Type:</label>
+                <select
+                  id="type"
+                  name="type"
+                  value={formData.type}
+                  onChange={handleInputChange}
+                  className="type-select"
+                >
+                  <option value="Communication">Communication</option>
+                  <option value="Memo">Memo</option>
+                </select>
               </div>
-            ) : (
-              attachments.map((file, index) => (
-                <div key={index} className="attachment-item">
-                  <div className="attachment-info">
-                    <span className="attachment-name">{file.name}</span>
-                    <span className="attachment-size">
-                      {(file.size / 1024).toFixed(2)} KB
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="remove-attachment"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent triggering the file input when removing
-                      removeAttachment(index);
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))
-            )}
+
+              <div className="form-group">
+                <label htmlFor="to">To:</label>
+                <input
+                  type="email"
+                  id="to"
+                  name="to"
+                  value={formData.to}
+                  onChange={handleInputChange}
+                  placeholder="recipient@example.com"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="subject">Subject:</label>
+                <input
+                  type="text"
+                  id="subject"
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleInputChange}
+                  placeholder="Email subject"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="body">Message:</label>
+                <textarea
+                  id="body"
+                  name="body"
+                  value={formData.body}
+                  onChange={handleInputChange}
+                  placeholder="Type your message here..."
+                  required
+                />
+              </div>
+            </>
+          )}
+
+          {/* Non-Email Mode Fields */}
+          {communicationMode === 'Document' && (
+            <>
+              <div className="form-group">
+                <label htmlFor="docType">Document Type:</label>
+                <select
+                  id="docType"
+                  name="docType"
+                  value={formData.docType}
+                  onChange={handleInputChange}
+                  className="type-select"
+                >
+                  <option value="IAR">IAR</option>
+                  <option value="ARE">ARE</option>
+                  <option value="PAAS">PAAS</option>
+                  <option value="BILLS">BILLS</option>
+                  <option value="LEAVE">LEAVE</option>
+                  <option value="NTP">NTP</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="direction">Direction:</label>
+                <select
+                  id="direction"
+                  name="direction"
+                  value={formData.direction}
+                  onChange={handleInputChange}
+                  className="type-select"
+                >
+                  <option value="IN">IN</option>
+                  <option value="OUT">OUT</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="remarks">Remarks:</label>
+                <textarea
+                  id="remarks"
+                  name="remarks"
+                  value={formData.remarks}
+                  onChange={handleInputChange}
+                  placeholder="Additional notes or comments..."
+                  rows="3"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Attachment Section (Common for both modes) */}
+          <div className="attachment-header">
+            <label>Attachment:</label>
           </div>
-        </div>
+          <div
+            className={`attachment-section ${isDragging ? 'dragging' : ''}`}
+            onClick={() => document.getElementById('fileInput').click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >  
+            <div className="file-input-wrapper">
+              <input
+                type="file"
+                id="fileInput"
+                multiple
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+              />
+            </div>
+            
+            <div className="attachment-list">
+              {attachments.length === 0 ? (
+                <div className="no-attachments">
+                  <div className="click-instruction">Click anywhere in this area to add attachments</div>
+                  <div className="drag-instruction">or drag and drop files here</div>
+                </div>
+              ) : (
+                attachments.map((file, index) => (
+                  <div key={index} className="attachment-item">
+                    <div className="attachment-info">
+                      <span className="attachment-name">{file.name}</span>
+                      <span className="attachment-size">
+                        {(file.size / 1024).toFixed(2)} KB
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="remove-attachment"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeAttachment(index);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
           
           <div className="button-group">
             <button 
@@ -328,8 +462,11 @@ const handleDrop = (e) => {
               disabled={isSubmitting}
               className={isSubmitting ? 'submitting' : ''}
             >
-              <span>📧</span> 
-              {isSubmitting ? 'Opening...' : 'Open in Email Client'}
+              <span>{communicationMode === 'Email' ? '📧' : '💾'}</span> 
+              {isSubmitting 
+                ? (communicationMode === 'Email' ? 'Opening...' : 'Saving...')
+                : (communicationMode === 'Email' ? 'Open in Email Client' : 'Save Record')
+              }
             </button>
             <button 
               type="button" 
@@ -341,8 +478,8 @@ const handleDrop = (e) => {
           </div>
         </form>
 
-        {/* Confirmation Dialog */}
-        {showConfirmation && (
+        {/* Confirmation Dialog (Email mode only) */}
+        {showConfirmation && communicationMode === 'Email' && (
           <div className="confirmation-overlay">
             <div className="confirmation-dialog">
               <h3>Email Confirmation</h3>

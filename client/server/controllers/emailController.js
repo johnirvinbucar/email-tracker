@@ -121,13 +121,15 @@ const getStats = async (req, res) => {
   }
 };
 
-// Add a new endpoint to get attachment files
+// Add this function to your emailController.js if not already there
 const getAttachment = async (req, res) => {
   try {
     const { filename } = req.params;
     const filePath = path.join(__dirname, '../uploads', filename);
     
     if (fs.existsSync(filePath)) {
+      // Set appropriate headers for file download
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.sendFile(filePath);
     } else {
       res.status(404).json({
