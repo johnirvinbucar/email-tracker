@@ -6,6 +6,7 @@ const fs = require('fs');
 require('dotenv').config();
 
 const emailRoutes = require('./routes/emailRoutes');
+const documentRoutes = require('./routes/documentRoutes'); // NEW
 const { emailLimiter } = require('./middleware/rateLimit');
 
 const app = express();
@@ -29,17 +30,19 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
 
-// Rate limiting for email submissions
+// Rate limiting
 app.use('/api/email', emailLimiter);
+app.use('/api/documents', emailLimiter); // Apply same rate limiting to documents
 
 // Routes
 app.use('/api/email', emailRoutes);
+app.use('/api/documents', documentRoutes); // NEW
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
     success: true, 
-    message: 'Email Tracker API is running',
+    message: 'Email and Document Tracker API is running',
     timestamp: new Date().toISOString()
   });
 });

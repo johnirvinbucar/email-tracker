@@ -1,0 +1,3 @@
+10.10.2.38 printer server COMMU
+
+10.10.2.36 printer server UCC

@@ -16,4 +16,12 @@ export const emailService = {
   getStats: () => api.get('/email/stats')
 };
 
+// NEW: Document service
+export const documentService = {
+  logDocument: (documentData) => api.post('/documents/log', documentData),
+  getLogs: (page = 1, limit = 10) => 
+    api.get(`/documents/logs?page=${page}&limit=${limit}`),
+  getStats: () => api.get('/documents/stats')
+};
+
 export default api;

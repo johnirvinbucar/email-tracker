@@ -1,18 +1,18 @@
 const pool = require('../config/database');
 const TrackingGenerator = require('../utils/trackingGenerator');
 
-class EmailLog {
+class DocumentLog {
   static async create(logData) {
     try {
       // Generate tracking number
       const trackingNumber = await TrackingGenerator.generateTrackingNumber();
       
       const {
-        to_email,
-        subject,
-        body,
-        type = 'Communication',
         sender_name,
+        doc_type,
+        document_subject,
+        direction,
+        remarks,
         attachment_count = 0,
         attachment_names = [],
         attachment_paths = [],
@@ -21,19 +21,19 @@ class EmailLog {
       } = logData;
 
       const query = `
-        INSERT INTO email_logs 
-        (tracking_number, to_email, subject, body, type, sender_name, attachment_count, attachment_names, attachment_paths, ip_address, user_agent)
+        INSERT INTO document_logs 
+        (tracking_number, sender_name, doc_type, document_subject, direction, remarks, attachment_count, attachment_names, attachment_paths, ip_address, user_agent)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *
       `;
 
       const values = [
         trackingNumber,
-        to_email,
-        subject,
-        body,
-        type,
         sender_name,
+        doc_type,
+        document_subject,
+        direction,
+        remarks,
         attachment_count,
         attachment_names,
         attachment_paths,
@@ -44,23 +44,23 @@ class EmailLog {
       const result = await pool.query(query, values);
       return result.rows[0];
     } catch (error) {
-      console.error('Error in EmailLog.create:', error);
+      console.error('Error in DocumentLog.create:', error);
       throw error;
     }
   }
 
-  // Update findAll to include tracking_number in the response
+  // Update findAll to include tracking_number
   static async findAll(page = 1, limit = 10) {
     try {
       const offset = (page - 1) * limit;
       
       const query = `
-        SELECT *, tracking_number as trackingNumber FROM email_logs 
+        SELECT *, tracking_number as trackingNumber FROM document_logs 
         ORDER BY created_at DESC 
         LIMIT $1 OFFSET $2
       `;
       
-      const countQuery = 'SELECT COUNT(*) FROM email_logs';
+      const countQuery = 'SELECT COUNT(*) FROM document_logs';
       
       const [result, countResult] = await Promise.all([
         pool.query(query, [limit, offset]),
@@ -74,7 +74,7 @@ class EmailLog {
         totalPages: Math.ceil(parseInt(countResult.rows[0].count) / limit)
       };
     } catch (error) {
-      console.error('Error in EmailLog.findAll:', error);
+      console.error('Error in DocumentLog.findAll:', error);
       throw error;
     }
   }
@@ -82,14 +82,14 @@ class EmailLog {
   // Add method to find by tracking number
   static async findByTrackingNumber(trackingNumber) {
     try {
-      const query = 'SELECT * FROM email_logs WHERE tracking_number = $1';
+      const query = 'SELECT * FROM document_logs WHERE tracking_number = $1';
       const result = await pool.query(query, [trackingNumber]);
       return result.rows[0];
     } catch (error) {
-      console.error('Error in EmailLog.findByTrackingNumber:', error);
+      console.error('Error in DocumentLog.findByTrackingNumber:', error);
       throw error;
     }
   }
 }
 
-module.exports = EmailLog;
+module.exports = DocumentLog;

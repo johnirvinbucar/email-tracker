@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { emailService } from '../services/api.js';
-import './EmailForm.css';
+import { emailService, documentService  } from '../services/api.js';
 
+import './EmailForm.css';
 const EmailForm = () => {
   const [communicationMode, setCommunicationMode] = useState('Email');
   const [formData, setFormData] = useState({
@@ -12,7 +12,8 @@ const EmailForm = () => {
     type: 'Communication',
     docType: 'IAR',
     direction: 'OUT',
-    remarks: ''
+    remarks: '',
+    documentSubject: ''
   });
   
   const [attachments, setAttachments] = useState([]);
@@ -21,6 +22,7 @@ const EmailForm = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [savedLogId, setSavedLogId] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [trackingNumber, setTrackingNumber] = useState(null); // ADD THIS LINE
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -64,27 +66,27 @@ const EmailForm = () => {
       [name]: value
     }));
   };
-
-  const handleCommunicationModeChange = (e) => {
-    const mode = e.target.value;
-    setCommunicationMode(mode);
-    // Reset form data when switching modes
-    if (mode === 'Email') {
-      setFormData(prev => ({
-        ...prev,
-        docType: 'IAR',
-        direction: 'OUT',
-        remarks: ''
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        to: '',
-        subject: '',
-        body: ''
-      }));
-    }
-  };
+const handleCommunicationModeChange = (e) => {
+  const mode = e.target.value;
+  setCommunicationMode(mode);
+  // Reset form data when switching modes
+  if (mode === 'Email') {
+    setFormData(prev => ({
+      ...prev,
+      docType: 'IAR',
+      direction: 'OUT',
+      remarks: '',
+      documentSubject: '' // NEW: Clear document subject when switching to Email
+    }));
+  } else {
+    setFormData(prev => ({
+      ...prev,
+      to: '',
+      subject: '',
+      body: ''
+    }));
+  }
+};
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
@@ -115,76 +117,90 @@ const EmailForm = () => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setMessage('');
+const handleEmailSubmit = async (e) => {
+  e.preventDefault();
+  setIsSubmitting(true);
+  setMessage('');
 
-    try {
-      const response = await emailService.logEmail({
-        ...formData,
-        category: 'Email',
-        attachments
+  try {
+    const response = await emailService.logEmail({
+      ...formData,
+      category: 'Email',
+      attachments
+    });
+
+        console.log('Full response:', response); // Debug log
+    console.log('Response data:', response.data); // Debug log
+
+        // Try different property names
+    const trackingNumber = response.data.data.tracking_number || 
+                          response.data.data.trackingNumber ||
+                          response.data.tracking_number;
+    
+    console.log('Tracking number found:', trackingNumber); // Debug log
+
+    setSavedLogId(response.data.data.id);
+    setTrackingNumber(trackingNumber); // Now this will work
+
+    let mailtoUrl = `mailto:${encodeURIComponent(formData.to)}`;
+    mailtoUrl += `?subject=${encodeURIComponent(formData.subject)}`;
+    
+    let finalBody = formData.body;
+    if (attachments.length > 0) {
+      finalBody += '\n\n---\nAttachments:\n';
+      attachments.forEach(file => {
+        finalBody += `- ${file.name}\n`;
       });
-
-      setSavedLogId(response.data.data.id);
-
-      let mailtoUrl = `mailto:${encodeURIComponent(formData.to)}`;
-      mailtoUrl += `?subject=${encodeURIComponent(formData.subject)}`;
-      
-      let finalBody = formData.body;
-      if (attachments.length > 0) {
-        finalBody += '\n\n---\nAttachments:\n';
-        attachments.forEach(file => {
-          finalBody += `- ${file.name}\n`;
-        });
-        finalBody += '\nPlease remember to manually attach these files in your email client.';
-      }
-      
-      mailtoUrl += `&body=${encodeURIComponent(finalBody)}`;
-      
-      window.location.href = mailtoUrl;
-      
-      setTimeout(() => {
-        setShowConfirmation(true);
-      }, 1000);
-      
-    } catch (error) {
-      console.error('Error logging email:', error);
-      setMessage('Failed to log email. Please try again.');
-      setIsSubmitting(false);
+      finalBody += '\nPlease remember to manually attach these files in your email client.';
     }
-  };
+    
+    mailtoUrl += `&body=${encodeURIComponent(finalBody)}`;
+    
+    window.location.href = mailtoUrl;
+    
+    setTimeout(() => {
+      setShowConfirmation(true);
+    }, 1000);
+    
+  } catch (error) {
+    console.error('Error logging email:', error);
+    setMessage('Failed to log email. Please try again.');
+    setIsSubmitting(false);
+  }
+};
 
+  // Update the handleNonEmailSubmit function:
   const handleNonEmailSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setMessage('');
 
     try {
-      const nonEmailData = {
+      const documentData = {
         senderName: formData.senderName,
-        category: 'Document',
         docType: formData.docType,
+        documentSubject: formData.documentSubject,
         direction: formData.direction,
         remarks: formData.remarks,
         attachments
       };
 
-      const response = await emailService.logEmail(nonEmailData);
+      const response = await documentService.logDocument(documentData);
+      const trackingNumber = response.data.data.tracking_number;
 
-      setMessage('Document record saved successfully!');
+      setMessage(`Document record saved successfully! Tracking Number: ${trackingNumber}`);
       
       // Reset form after success
       setTimeout(() => {
         setFormData(prev => ({
           ...prev,
           senderName: '',
+          documentSubject: '',
           remarks: ''
         }));
         setAttachments([]);
         setMessage('');
-      }, 3000);
+      }, 5000); // Increased timeout to show tracking number
       
     } catch (error) {
       console.error('Error saving document record:', error);
@@ -193,51 +209,58 @@ const EmailForm = () => {
     
     setIsSubmitting(false);
   };
-
-  const handleConfirmation = (confirmed) => {
-    setShowConfirmation(false);
+const handleConfirmation = (confirmed) => {
+  setShowConfirmation(false);
+  
+  if (confirmed) {
+    setMessage(`Thank you for confirming! Email was sent successfully. Tracking Number: ${trackingNumber}`);
     
-    if (confirmed) {
-      setMessage('Thank you for confirming! Email was sent successfully.');
-      
-      setTimeout(() => {
-        setFormData({
-          senderName: '',
-          to: '',
-          subject: '',
-          body: '',
-          type: 'Communication',
-          docType: 'IAR',
-          direction: 'OUT',
-          remarks: ''
-        });
-        setAttachments([]);
-        setMessage('');
-        setSavedLogId(null);
-      }, 3000);
-    } else {
-      setMessage('Email was logged but marked as not sent.');
-      setTimeout(() => setMessage(''), 5000);
-    }
-    
-    setIsSubmitting(false);
-  };
+    setTimeout(() => {
+      setFormData({
+        senderName: '',
+        to: '',
+        subject: '',
+        body: '',
+        type: 'Communication',
+        docType: 'IAR',
+        direction: 'OUT',
+        remarks: '',
+        documentSubject: ''
+      });
+      setAttachments([]);
+      setMessage('');
+      setSavedLogId(null);
+      setTrackingNumber(null); // Reset tracking number
+    }, 5000);
+  } else {
+    setMessage(`Email was logged but marked as not sent. Tracking Number: ${trackingNumber}`);
+    setTimeout(() => {
+      setMessage('');
+      setTrackingNumber(null); // Reset tracking number
+    }, 5000);
+  }
+  
+  setIsSubmitting(false);
+};
 
-  const clearForm = () => {
-    setFormData({
-      senderName: '',
-      to: '',
-      subject: '',
-      body: '',
-      type: 'Communication',
-      docType: 'IAR',
-      direction: 'OUT',
-      remarks: ''
-    });
-    setAttachments([]);
-    setMessage('');
-    setSavedLogId(null);
-  };
+
+const clearForm = () => {
+  setFormData({
+    senderName: '',
+    to: '',
+    subject: '',
+    body: '',
+    type: 'Communication',
+    docType: 'IAR',
+    direction: 'OUT',
+    remarks: '',
+    documentSubject: ''
+  });
+  setAttachments([]);
+  setMessage('');
+  setSavedLogId(null);
+  setTrackingNumber(null); // ADD THIS LINE
+};
 
   return (
     <div className="container">
@@ -355,7 +378,6 @@ const EmailForm = () => {
             </>
           )}
 
-          {/* Non-Email Mode Fields */}
           {communicationMode === 'Document' && (
             <>
               <div className="form-group">
@@ -374,6 +396,20 @@ const EmailForm = () => {
                   <option value="LEAVE">LEAVE</option>
                   <option value="NTP">NTP</option>
                 </select>
+              </div>
+
+              {/* NEW: Document Subject Field */}
+              <div className="form-group">
+                <label htmlFor="documentSubject">Subject:</label>
+                <input
+                  type="text"
+                  id="documentSubject"
+                  name="documentSubject"
+                  value={formData.documentSubject}
+                  onChange={handleInputChange}
+                  placeholder="Enter document subject"
+                  required
+                />
               </div>
 
               <div className="form-group">
@@ -479,37 +515,38 @@ const EmailForm = () => {
         </form>
 
         {/* Confirmation Dialog (Email mode only) */}
-        {showConfirmation && communicationMode === 'Email' && (
-          <div className="confirmation-overlay">
-            <div className="confirmation-dialog">
-              <h3>Email Confirmation</h3>
-              <p>Did you send this email in Outlook?</p>
-              <div className="email-preview">
-                <p><strong>From:</strong> {formData.senderName}</p>
-                <p><strong>To:</strong> {formData.to}</p>
-                <p><strong>Subject:</strong> {formData.subject}</p>
-                <p><strong>Type:</strong> {formData.type}</p>
-                {attachments.length > 0 && (
-                  <p><strong>Attachments saved:</strong> {attachments.length} file(s)</p>
-                )}
-              </div>
-              <div className="confirmation-buttons">
-                <button 
-                  onClick={() => handleConfirmation(true)}
-                  className="confirm-yes"
-                >
-                  Yes, I sent it
-                </button>
-                <button 
-                  onClick={() => handleConfirmation(false)}
-                  className="confirm-no"
-                >
-                  No, I didn't send it
-                </button>
+          {showConfirmation && communicationMode === 'Email' && (
+            <div className="confirmation-overlay">
+              <div className="confirmation-dialog">
+                <h3>Email Confirmation</h3>
+                <p>Did you send this email in Outlook?</p>
+                <div className="email-preview">
+                  <p><strong>Tracking Number:</strong> {trackingNumber}</p> {/* Add this line */}
+                  <p><strong>From:</strong> {formData.senderName}</p>
+                  <p><strong>To:</strong> {formData.to}</p>
+                  <p><strong>Subject:</strong> {formData.subject}</p>
+                  <p><strong>Type:</strong> {formData.type}</p>
+                  {attachments.length > 0 && (
+                    <p><strong>Attachments saved:</strong> {attachments.length} file(s)</p>
+                  )}
+                </div>
+                <div className="confirmation-buttons">
+                  <button 
+                    onClick={() => handleConfirmation(true)}
+                    className="confirm-yes"
+                  >
+                    Yes, I sent it
+                  </button>
+                  <button 
+                    onClick={() => handleConfirmation(false)}
+                    className="confirm-no"
+                  >
+                    No, I didn't send it
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
     </div>
   );
