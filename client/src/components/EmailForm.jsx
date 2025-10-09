@@ -7,7 +7,7 @@ const EmailForm = () => {
     senderName: '',
     to: '',
     subject: '',
-    body: 'Hello,\n\nI hope this email finds you well.\n\nBest regards,\n[Your Name]',
+    body: '',
     type: 'Communication'
   });
   
@@ -16,6 +16,43 @@ const EmailForm = () => {
   const [message, setMessage] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [savedLogId, setSavedLogId] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+const handleDragOver = (e) => {
+  e.preventDefault();
+  setIsDragging(true);
+};
+
+const handleDragLeave = (e) => {
+  e.preventDefault();
+  setIsDragging(false);
+};
+
+const handleDrop = (e) => {
+  e.preventDefault();
+  setIsDragging(false);
+  const files = Array.from(e.dataTransfer.files);
+  
+  // Process dropped files
+  const filePromises = files.map(file => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        resolve({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          fileData: e.target.result.split(',')[1]
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  Promise.all(filePromises).then(newFiles => {
+    setAttachments(prev => [...prev, ...newFiles]);
+  });
+};
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -113,7 +150,7 @@ const EmailForm = () => {
           senderName: '',
           to: '',
           subject: '',
-          body: 'Hello,\n\nI hope this email finds you well.\n\nBest regards,\n[Your Name]',
+          body: '',
           type: 'Communication'
         });
         setAttachments([]);
@@ -133,7 +170,7 @@ const EmailForm = () => {
       senderName: '',
       to: '',
       subject: '',
-      body: 'Hello,\n\nI hope this email finds you well.\n\nBest regards,\n[Your Name]',
+      body: '',
       type: 'Communication'
     });
     setAttachments([]);
@@ -143,15 +180,21 @@ const EmailForm = () => {
 
   return (
     <div className="container">
-      <div className="header">
+      {/* <div className="header">
         <div className="header-icon">✉️</div>
         <h1>Email Form</h1>
-      </div>
+      </div> */}
       
       <div className="form-container">
-        <div className="instructions">
-          <p><strong>Note:</strong> Files are now saved locally on the server and logged in the database.</p>
-        </div>
+<div className="instructions">
+  <p><strong>Attachment Instructions:</strong></p>
+  <ol>
+    <li>Files are saved to our tracking system</li>
+    <li>Outlook will open with your email content</li>
+    <li><strong>You must manually reattach the files in Outlook</strong></li>
+    <li>Then send your email as usual</li>
+  </ol>
+</div>
         
         {message && (
           <div className={`message ${message.includes('successfully') ? 'success' : 'error'}`}>
@@ -216,59 +259,68 @@ const EmailForm = () => {
           </div>
           
           <div className="form-group">
-            <label htmlFor="body">Message:</label>
-            <textarea
-              id="body"
-              name="body"
-              value={formData.body}
-              onChange={handleInputChange}
-              placeholder="Type your message here..."
-              required
+          <label htmlFor="body">Message:</label>
+          <textarea
+            id="body"
+            name="body"
+            value={formData.body}
+            onChange={handleInputChange}
+            placeholder="Type your message here..."
+            required
+          />
+        </div>
+
+        <div className="attachment-header">
+          <label>Attachment:</label>
+        </div>
+      {/* Attachment Section (outside the form-group) */}
+      <div
+        className={`attachment-section ${isDragging ? 'dragging' : ''}`}
+        onClick={() => document.getElementById('fileInput').click()}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >  
+          <div className="file-input-wrapper">
+            <input
+              type="file"
+              id="fileInput"
+              multiple
+              onChange={handleFileChange}
+              style={{ display: 'none' }} // Hide the actual file input
             />
           </div>
           
-          <div className="attachment-section">
-            <div className="attachment-header">
-              <div className="attachment-icon">📎</div>
-              <h3>Attachments</h3>
-            </div>
-            
-            <div className="file-input-wrapper">
-              <button type="button" className="file-input-button">
-                <span>➕</span> Add Attachment
-              </button>
-              <input
-                type="file"
-                id="fileInput"
-                multiple
-                onChange={handleFileChange}
-              />
-            </div>
-            
-            <div className="attachment-list">
-              {attachments.length === 0 ? (
-                <div className="no-attachments">No attachments selected</div>
-              ) : (
-                attachments.map((file, index) => (
-                  <div key={index} className="attachment-item">
-                    <div className="attachment-info">
-                      <span className="attachment-name">{file.name}</span>
-                      <span className="attachment-size">
-                        {(file.size / 1024).toFixed(2)} KB
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="remove-attachment"
-                      onClick={() => removeAttachment(index)}
-                    >
-                      ✕
-                    </button>
+          <div className="attachment-list">
+            {attachments.length === 0 ? (
+              <div className="no-attachments">
+                <div className="click-instruction">Click anywhere in this area to add attachments</div>
+                <div className="drag-instruction">or drag and drop files here</div>
+              </div>
+            ) : (
+              attachments.map((file, index) => (
+                <div key={index} className="attachment-item">
+                  <div className="attachment-info">
+                    <span className="attachment-name">{file.name}</span>
+                    <span className="attachment-size">
+                      {(file.size / 1024).toFixed(2)} KB
+                    </span>
                   </div>
-                ))
-              )}
-            </div>
+                  <button
+                    type="button"
+                    className="remove-attachment"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering the file input when removing
+                      removeAttachment(index);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))
+            )}
           </div>
+        </div>
           
           <div className="button-group">
             <button 
