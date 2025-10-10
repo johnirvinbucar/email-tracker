@@ -17,6 +17,7 @@ const ReportsPage = () => {
   });
   const [selectedReport, setSelectedReport] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showUpdateStatusModal, setShowUpdateStatusModal] = useState(false);
   const [statusHistory, setStatusHistory] = useState([]);
   const [statusUpdate, setStatusUpdate] = useState({
     status: '',
@@ -110,7 +111,15 @@ const ReportsPage = () => {
     });
   };
 
-  const handleStatusUpdate = async () => {
+  const handleOpenUpdateStatus = () => {
+    setShowUpdateStatusModal(true);
+  };
+
+  const handleCloseUpdateStatus = () => {
+    setShowUpdateStatusModal(false);
+  };
+
+  const handleUpdateStatusSubmit = async () => {
     if (!statusUpdate.status) {
       alert('Please select a status');
       return;
@@ -157,6 +166,7 @@ const ReportsPage = () => {
         updatedBy: statusUpdate.updatedBy // Keep user name
       });
 
+      setShowUpdateStatusModal(false);
       alert('Status updated successfully!');
       
     } catch (error) {
@@ -200,6 +210,7 @@ const ReportsPage = () => {
       await loadStatusHistory(selectedReport.id, selectedReport.recordType);
       await loadReports();
       
+      setShowUpdateStatusModal(false);
       alert(`Status updated to ${status}!`);
       
     } catch (error) {
@@ -532,178 +543,134 @@ const ReportsPage = () => {
             </div>
             
             <div className="modal-content">
-              {/* Record Details */}
-              <div className="details-section">
-                <h4>Record Information</h4>
-                <div className="details-grid">
+              {/* Record Information - Improved Section */}
+              <div className="details-section record-information">
+                <h4 className="section-title-bold">Record Information</h4>
+                <div className="details-grid compact-grid">
                   <div className="detail-item">
-                    <label>Tracking Number</label>
-                    <span>{selectedReport.tracking_number}</span>
+                    <label className="bold-label">Tracking Number</label>
+                    <span className="bold-value">{selectedReport.tracking_number}</span>
                   </div>
                   <div className="detail-item">
-                    <label>Record Type</label>
+                    <label className="bold-label">Record Type</label>
                     <span className={`record-type ${selectedReport.recordType}`}>
                       {selectedReport.recordType === 'email' ? 'Email' : 'Document'}
                     </span>
                   </div>
                   <div className="detail-item">
-                    <label>Document Type</label>
+                    <label className="bold-label">Document Type</label>
                     <span className="type-badge">{selectedReport.documentType || selectedReport.displayType}</span>
                   </div>
                   <div className="detail-item">
-                    <label>Sender</label>
-                    <span>{selectedReport.sender_name}</span>
+                    <label className="bold-label">Sender</label>
+                    <span className="bold-value">{selectedReport.sender_name}</span>
                   </div>
                   <div className="detail-item">
-                    <label>Current Status</label>
-                    <span className={`status-badge status-${selectedReport.current_status?.toLowerCase() || 'pending'}`}>
+                    <label className="bold-label">Current Status</label>
+                    <span className={`status-badge status-${selectedReport.current_status?.toLowerCase() || 'pending'} highlight-badge`}>
                       {selectedReport.current_status || 'Pending'}
                     </span>
                   </div>
                   {selectedReport.recordType === 'email' ? (
                     <div className="detail-item">
-                      <label>Recipient</label>
-                      <span className="email-address">{selectedReport.recipient}</span>
+                      <label className="bold-label">Recipient</label>
+                      <span className="email-address bold-value">{selectedReport.recipient}</span>
                     </div>
                   ) : (
                     <div className="detail-item">
-                      <label>Direction</label>
+                      <label className="bold-label">Direction</label>
                       <span className={`direction-badge direction-${selectedReport.recipient?.toLowerCase()}`}>
                         {selectedReport.recipient}
                       </span>
                     </div>
                   )}
                   <div className="detail-item full-width">
-                    <label>Subject</label>
-                    <span className="subject">{selectedReport.subject}</span>
+                    <label className="bold-label">Subject</label>
+                    <span className="subject bold-value">{selectedReport.subject}</span>
                   </div>
                   <div className="detail-item">
-                    <label>Date</label>
-                    <span>{new Date(selectedReport.timestamp).toLocaleDateString()}</span>
+                    <label className="bold-label">Date</label>
+                    <span className="bold-value">{new Date(selectedReport.timestamp).toLocaleDateString()}</span>
                   </div>
                   <div className="detail-item">
-                    <label>Time</label>
-                    <span>{formatTime(selectedReport.timestamp)}</span>
+                    <label className="bold-label">Time</label>
+                    <span className="bold-value">{formatTime(selectedReport.timestamp)}</span>
                   </div>
                   {selectedReport.status_updated_at && (
                     <div className="detail-item">
-                      <label>Status Updated</label>
-                      <span>{new Date(selectedReport.status_updated_at).toLocaleString()}</span>
+                      <label className="bold-label">Status Updated</label>
+                      <span className="bold-value">{new Date(selectedReport.status_updated_at).toLocaleString()}</span>
                     </div>
                   )}
                   {selectedReport.status_updated_by && (
                     <div className="detail-item">
-                      <label>Updated By</label>
-                      <span>{selectedReport.status_updated_by}</span>
+                      <label className="bold-label">Updated By</label>
+                      <span className="bold-value">{selectedReport.status_updated_by}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Status Update Section with User Input */}
-              <div className="status-section">
-                <h4>Update Status</h4>
-                <div className="status-form">
-                  {/* User Name Input */}
-                  <div className="form-group full-width required">
-                    <label>Your Name</label>
-                    <input 
-                      type="text"
-                      value={statusUpdate.updatedBy}
-                      onChange={(e) => setStatusUpdate({...statusUpdate, updatedBy: e.target.value})}
-                      placeholder="Enter your name"
-                      className="user-input"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group required">
-                      <label>Status</label>
-                      <select 
-                        value={statusUpdate.status}
-                        onChange={(e) => setStatusUpdate({...statusUpdate, status: e.target.value})}
-                        required
-                      >
-                        <option value="">Select Status</option>
-                        <option value="Pending">Pending</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
-                    </div>
-                    
-                    <div className="form-group">
-                      <label>Direction</label>
-                      <select 
-                        value={statusUpdate.direction}
-                        onChange={(e) => setStatusUpdate({...statusUpdate, direction: e.target.value})}
-                      >
-                        <option value="">Select Direction</option>
-                        <option value="IN">IN</option>
-                        <option value="OUT">OUT</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="form-group full-width">
-                    <label>Remarks</label>
-                    <textarea 
-                      value={statusUpdate.remarks}
-                      onChange={(e) => setStatusUpdate({...statusUpdate, remarks: e.target.value})}
-                      placeholder="Enter status remarks..."
-                      rows="2"
-                    />
-                  </div>
-
-                  <div className="form-actions">
-                    <div className="quick-actions">
-                      <span className="quick-label">Quick Actions:</span>
-                      <button 
-                        className="quick-btn pending"
-                        onClick={() => quickUpdateStatus('Pending')}
-                        disabled={!statusUpdate.updatedBy.trim()}
-                      >
-                        Mark Pending
-                      </button>
-                      <button 
-                        className="quick-btn completed"
-                        onClick={() => quickUpdateStatus('Completed')}
-                        disabled={!statusUpdate.updatedBy.trim()}
-                      >
-                        Mark Completed
-                      </button>
-                    </div>
-                    <button 
-                      className="update-btn"
-                      onClick={handleStatusUpdate}
-                      disabled={updatingStatus || !statusUpdate.status || !statusUpdate.updatedBy.trim()}
-                    >
-                      {updatingStatus ? 'Updating...' : 'Update Status'}
-                    </button>
+              {/* Content with Attachments */}
+              <div className="content-attachments-section">
+                <div className="content-section">
+                  <h4 className="section-title">{selectedReport.recordType === 'email' ? 'Email Content' : 'Document Remarks'}</h4>
+                  <div className="content-preview">
+                    {selectedReport.recordType === 'email' ? selectedReport.body : selectedReport.remarks}
                   </div>
                 </div>
+
+                {/* Attachments */}
+                {selectedReport.attachment_count > 0 && (
+                  <div className="attachments-section">
+                    <h4 className="section-title">Attachments ({selectedReport.attachment_count})</h4>
+                    {selectedReport.attachment_names && selectedReport.attachment_names.length > 0 ? (
+                      <div className="attachment-list">
+                        {selectedReport.attachment_names.map((fileName, index) => {
+                          const savedFileName = selectedReport.attachment_paths?.[index] || fileName;
+                          return (
+                            <div key={index} className="attachment-item">
+                              <span className="file-name">{fileName}</span>
+                              <button 
+                                className="download-btn"
+                                onClick={() => downloadAttachment(savedFileName, fileName)}
+                              >
+                                Download
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="no-attachments">No attachment information available</div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Status History */}
-              <div className="history-section">
-                <h4>Status History</h4>
+              {/* Status History - Highlighted Section */}
+              <div className="history-section highlighted-section">
+                <h4 className="section-title-bold highlight-title">Status History</h4>
                 {statusHistory.length > 0 ? (
                   <div className="history-list">
-                    {statusHistory.map((history) => (
-                      <div key={history.id} className="history-item">
+                    {statusHistory.map((history, index) => (
+                      <div key={history.id} className={`history-item ${index === 0 ? 'latest-history' : ''}`}>
                         <div className="history-main">
-                          <span className={`history-status status-${history.status?.toLowerCase()}`}>
+                          <span className={`history-status status-${history.status?.toLowerCase()} bold-status`}>
                             {history.status}
                           </span>
-                          <span className="history-time">
+                          <span className="history-time bold-time">
                             {new Date(history.created_at).toLocaleString()}
                           </span>
                         </div>
                         <div className="history-details">
-                          {history.direction && <span>Direction: {history.direction}</span>}
-                          {history.remarks && <span>Remarks: {history.remarks}</span>}
-                          <span className="history-by">By: {history.created_by}</span>
+                          {history.direction && (
+                            <span className="bold-detail">Direction: <strong>{history.direction}</strong></span>
+                          )}
+                          {history.remarks && (
+                            <span className="bold-detail">Remarks: <strong>{history.remarks}</strong></span>
+                          )}
+                          <span className="history-by bold-by">By: <strong>{history.created_by}</strong></span>
                         </div>
                       </div>
                     ))}
@@ -713,40 +680,15 @@ const ReportsPage = () => {
                 )}
               </div>
 
-              {/* Content */}
-              <div className="content-section">
-                <h4>{selectedReport.recordType === 'email' ? 'Email Content' : 'Document Remarks'}</h4>
-                <div className="content-preview">
-                  {selectedReport.recordType === 'email' ? selectedReport.body : selectedReport.remarks}
-                </div>
+              {/* Update Status Button */}
+              <div className="update-status-section">
+                <button 
+                  className="update-status-btn primary-btn"
+                  onClick={handleOpenUpdateStatus}
+                >
+                  Update Status
+                </button>
               </div>
-
-              {/* Attachments */}
-              {selectedReport.attachment_count > 0 && (
-                <div className="attachments-section">
-                  <h4>Attachments ({selectedReport.attachment_count})</h4>
-                  {selectedReport.attachment_names && selectedReport.attachment_names.length > 0 ? (
-                    <div className="attachment-list">
-                      {selectedReport.attachment_names.map((fileName, index) => {
-                        const savedFileName = selectedReport.attachment_paths?.[index] || fileName;
-                        return (
-                          <div key={index} className="attachment-item">
-                            <span className="file-name">{fileName}</span>
-                            <button 
-                              className="download-btn"
-                              onClick={() => downloadAttachment(savedFileName, fileName)}
-                            >
-                              Download
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="no-attachments">No attachment information available</div>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="modal-footer">
@@ -755,6 +697,120 @@ const ReportsPage = () => {
                 onClick={() => setShowDetailsModal(false)}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Status Modal */}
+      {showUpdateStatusModal && selectedReport && (
+        <div className="modal-overlay">
+          <div className="update-status-modal">
+            <div className="modal-header">
+              <div className="modal-title">
+                <h3>Update Status</h3>
+                <span className="tracking-number-modal">{selectedReport.tracking_number}</span>
+              </div>
+              <button 
+                className="close-modal"
+                onClick={handleCloseUpdateStatus}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="status-form">
+                {/* User Name Input */}
+                <div className="form-group full-width required">
+                  <label className="bold-label">Your Name</label>
+                  <input 
+                    type="text"
+                    value={statusUpdate.updatedBy}
+                    onChange={(e) => setStatusUpdate({...statusUpdate, updatedBy: e.target.value})}
+                    placeholder="Enter your name"
+                    className="user-input"
+                    required
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group required">
+                    <label className="bold-label">Status</label>
+                    <select 
+                      value={statusUpdate.status}
+                      onChange={(e) => setStatusUpdate({...statusUpdate, status: e.target.value})}
+                      required
+                    >
+                      <option value="">Select Status</option>
+                      <option value="Pending">Pending</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label className="bold-label">Direction</label>
+                    <select 
+                      value={statusUpdate.direction}
+                      onChange={(e) => setStatusUpdate({...statusUpdate, direction: e.target.value})}
+                    >
+                      <option value="">Select Direction</option>
+                      <option value="IN">IN</option>
+                      <option value="OUT">OUT</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-group full-width">
+                  <label className="bold-label">Remarks</label>
+                  <textarea 
+                    value={statusUpdate.remarks}
+                    onChange={(e) => setStatusUpdate({...statusUpdate, remarks: e.target.value})}
+                    placeholder="Enter status remarks..."
+                    rows="3"
+                  />
+                </div>
+
+                <div className="form-actions">
+                  <div className="quick-actions">
+                    <span className="quick-label bold-label">Quick Actions:</span>
+                    <button 
+                      className="quick-btn pending"
+                      onClick={() => quickUpdateStatus('Pending')}
+                      disabled={!statusUpdate.updatedBy.trim()}
+                    >
+                      Mark Pending
+                    </button>
+                    <button 
+                      className="quick-btn completed"
+                      onClick={() => quickUpdateStatus('Completed')}
+                      disabled={!statusUpdate.updatedBy.trim()}
+                    >
+                      Mark Completed
+                    </button>
+                  </div>
+                  <div className="main-action">
+                    <button 
+                      className="update-btn primary-btn"
+                      onClick={handleUpdateStatusSubmit}
+                      disabled={updatingStatus || !statusUpdate.status || !statusUpdate.updatedBy.trim()}
+                    >
+                      {updatingStatus ? 'Updating...' : 'Update Status'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button 
+                className="close-btn secondary-btn"
+                onClick={handleCloseUpdateStatus}
+              >
+                Cancel
               </button>
             </div>
           </div>

@@ -443,6 +443,16 @@
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
+.update-status-modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -497,6 +507,295 @@
   padding: 24px;
 }
 
+/* Improved Details Modal Styles */
+.details-section.record-information {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 20px;
+}
+
+.compact-grid {
+  gap: 12px !important;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px !important; /* Closer spacing */
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.detail-item label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-item span {
+  color: #1e293b;
+  font-size: 0.9rem;
+}
+
+.bold-label {
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  font-size: 0.8rem !important;
+}
+
+.bold-value {
+  font-weight: 600;
+  color: #374151;
+}
+
+.section-title-bold {
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  font-size: 1.1rem !important;
+  margin-bottom: 16px !important;
+  border-bottom: 2px solid #3b82f6 !important;
+  padding-bottom: 8px !important;
+}
+
+/* Content with Attachments Section */
+.content-attachments-section {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+/* Highlighted Status History */
+.history-section.highlighted-section {
+  background: #fff7ed;
+  padding: 20px;
+  border-radius: 8px;
+  border: 2px solid #fdba74;
+  margin-bottom: 20px;
+}
+
+.highlight-title {
+  color: #c2410c !important;
+  border-bottom-color: #c2410c !important;
+}
+
+.history-item.latest-history {
+  background: #fed7aa;
+  border-left: 4px solid #ea580c;
+}
+
+.bold-status {
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+}
+
+.bold-time {
+  font-weight: 600 !important;
+  color: #7c2d12 !important;
+}
+
+.bold-detail {
+  font-weight: 600;
+}
+
+.bold-by {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.history-details strong {
+  font-weight: 700;
+  color: #374151;
+}
+
+/* Update Status Button Section */
+.update-status-section {
+  text-align: center;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px dashed #cbd5e1;
+}
+
+.update-status-btn {
+  padding: 12px 32px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.primary-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.primary-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.secondary-btn {
+  background: #6b7280;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.secondary-btn:hover {
+  background: #4b5563;
+}
+
+/* Update Status Modal Specific Styles */
+.update-status-modal .modal-content {
+  padding: 24px;
+}
+
+.update-status-modal .status-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.update-status-modal .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.update-status-modal .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.update-status-modal .form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.update-status-modal label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.update-status-modal select,
+.update-status-modal textarea,
+.update-status-modal .user-input {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.update-status-modal select:focus,
+.update-status-modal textarea:focus,
+.update-status-modal .user-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.update-status-modal textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.update-status-modal .form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.update-status-modal .quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.update-status-modal .main-action {
+  text-align: center;
+}
+
+.update-status-modal .quick-btn {
+  padding: 8px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.update-status-modal .quick-btn.pending {
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+.update-status-modal .quick-btn.pending:hover:not(:disabled) {
+  background: #fef3c7;
+}
+
+.update-status-modal .quick-btn.completed {
+  color: #166534;
+  border-color: #86efac;
+}
+
+.update-status-modal .quick-btn.completed:hover:not(:disabled) {
+  background: #dcfce7;
+}
+
+.update-status-modal .quick-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Highlight Badge */
+.highlight-badge {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Required field styling */
+.form-group.required label::after {
+  content: " *";
+  color: #ef4444;
+}
+
 /* Details Sections */
 .details-section,
 .status-section,
@@ -523,29 +822,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
-}
-
-.detail-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.detail-item.full-width {
-  grid-column: 1 / -1;
-}
-
-.detail-item label {
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.detail-item span {
-  color: #1e293b;
-  font-size: 0.9rem;
 }
 
 /* Status Form */
@@ -593,12 +869,6 @@
 .status-form textarea {
   resize: vertical;
   min-height: 60px;
-}
-
-/* Required field styling */
-.form-group.required label::after {
-  content: " *";
-  color: #ef4444;
 }
 
 /* User input specific styling */
@@ -872,6 +1142,19 @@
   .details-modal {
     width: 95%;
   }
+  
+  .update-status-modal .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .update-status-modal {
+    width: 95%;
+    margin: 20px;
+  }
+  
+  .compact-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 480px) {
@@ -910,7 +1193,8 @@
   }
 }
 
-.details-modal {
+.details-modal,
+.update-status-modal {
   animation: modalAppear 0.2s ease-out;
 }
 
