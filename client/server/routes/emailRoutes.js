@@ -6,6 +6,6 @@ const router = express.Router();
 router.post('/log', logEmail);
 router.get('/logs', getEmailLogs);
 router.get('/stats', getStats);
-router.get('/attachment/:filename', getAttachment); // Make sure this exists
+router.get('/attachment/:filename', getAttachment);
 
-module.exports = router;
+module.exports = router; 

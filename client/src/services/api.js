@@ -24,4 +24,13 @@ export const documentService = {
   getStats: () => api.get('/documents/stats')
 };
 
+// Add to your existing api.js
+export const statusService = {
+  updateStatus: (statusData) => api.put('/status/update', statusData),
+  getStatusHistory: (recordId, recordType) => 
+    api.get(`/status/history?recordId=${recordId}&recordType=${recordType}`),
+  getStatusStats: (recordType = null) => 
+    api.get(recordType ? `/status/stats?recordType=${recordType}` : '/status/stats')
+};
+
 export default api;

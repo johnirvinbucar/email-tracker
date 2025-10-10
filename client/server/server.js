@@ -8,6 +8,8 @@ require('dotenv').config();
 const emailRoutes = require('./routes/emailRoutes');
 const documentRoutes = require('./routes/documentRoutes'); // NEW
 const { emailLimiter } = require('./middleware/rateLimit');
+const statusRoutes = require('./routes/statusRoutes');
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -37,6 +39,7 @@ app.use('/api/documents', emailLimiter); // Apply same rate limiting to document
 // Routes
 app.use('/api/email', emailRoutes);
 app.use('/api/documents', documentRoutes); // NEW
+app.use('/api/status', statusRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

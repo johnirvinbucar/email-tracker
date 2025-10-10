@@ -111,6 +111,8 @@ const logEmail = async (req, res) => {
     
     console.log('✅ Record saved successfully:', savedLog.id);
     console.log('📎 Files saved:', savedFiles.length);
+    console.log('📧 Tracking Number:', savedLog.tracking_number); // Add this log
+
     
     res.status(201).json({
       success: true,

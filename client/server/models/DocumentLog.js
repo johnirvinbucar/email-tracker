@@ -90,6 +90,55 @@ class DocumentLog {
       throw error;
     }
   }
+
+  static async updateStatus(documentId, statusData) {
+  try {
+    const {
+      status,
+      direction,
+      remarks,
+      updated_by
+    } = statusData;
+
+    const query = `
+      UPDATE document_logs 
+      SET 
+        current_status = $1,
+        current_direction = $2,
+        current_status_remarks = $3,
+        status_updated_at = NOW(),
+        status_updated_by = $4
+      WHERE id = $5
+      RETURNING *
+    `;
+
+    const values = [
+      status,
+      direction,
+      remarks,
+      updated_by,
+      documentId
+    ];
+
+    const result = await pool.query(query, values);
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error in DocumentLog.updateStatus:', error);
+    throw error;
+  }
+}
+
+static async findById(id) {
+  try {
+    const query = 'SELECT * FROM document_logs WHERE id = $1';
+    const result = await pool.query(query, [id]);
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error in DocumentLog.findById:', error);
+    throw error;
+  }
+}
+
 }
 
 module.exports = DocumentLog;
