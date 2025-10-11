@@ -89,16 +89,55 @@ const ReportsPage = () => {
   const loadStatusHistory = async (recordId, recordType) => {
     try {
       const response = await statusService.getStatusHistory(recordId, recordType);
-      setStatusHistory(response.data.data);
+      return response.data.data;
     } catch (error) {
       console.error('Error loading status history:', error);
+      return [];
     }
   };
 
   const handleViewDetails = async (report) => {
     setSelectedReport(report);
     setShowDetailsModal(true);
-    await loadStatusHistory(report.id, report.recordType);
+    
+    // Load status history from API
+    const apiStatusHistory = await loadStatusHistory(report.id, report.recordType);
+    
+    // Create combined status history with document remarks as first entry
+    let combinedStatusHistory = [...apiStatusHistory];
+    
+    // For documents, add the remarks as the initial status history entry
+    if (report.recordType === 'document' && report.remarks) {
+      const initialRemarksEntry = {
+        id: -1, // Special ID for initial remarks
+        status: 'Created',
+        direction: report.direction || '',
+        remarks: report.remarks,
+        created_at: report.timestamp,
+        created_by: report.sender_name || 'System',
+        is_initial_remarks: true
+      };
+      combinedStatusHistory = [initialRemarksEntry, ...apiStatusHistory];
+    }
+    
+    // For emails, add the body as initial content if needed
+    if (report.recordType === 'email' && report.body) {
+      const initialEmailEntry = {
+        id: -2, // Special ID for email body
+        status: 'Sent',
+        direction: 'OUT',
+        remarks: report.body,
+        created_at: report.timestamp,
+        created_by: report.sender_name || 'System',
+        is_initial_content: true
+      };
+      combinedStatusHistory = [initialEmailEntry, ...apiStatusHistory];
+    }
+    
+    // Sort by date descending (newest first)
+    combinedStatusHistory.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    
+    setStatusHistory(combinedStatusHistory);
     
     // Get saved user name from localStorage if available
     const savedUser = localStorage.getItem('statusUpdateUser') || '';
@@ -113,6 +152,14 @@ const ReportsPage = () => {
 
   const handleOpenUpdateStatus = () => {
     setShowUpdateStatusModal(true);
+    // Clear the form when opening
+    const savedUser = localStorage.getItem('statusUpdateUser') || '';
+    setStatusUpdate({
+      status: '',
+      direction: '',
+      remarks: '',
+      updatedBy: savedUser
+    });
   };
 
   const handleCloseUpdateStatus = () => {
@@ -145,7 +192,7 @@ const ReportsPage = () => {
         updatedBy: statusUpdate.updatedBy
       };
 
-      const response = await statusService.updateStatus(updateData);
+      await statusService.updateStatus(updateData);
       
       setSelectedReport(prev => ({
         ...prev,
@@ -156,14 +203,50 @@ const ReportsPage = () => {
         status_updated_by: statusUpdate.updatedBy
       }));
 
-      await loadStatusHistory(selectedReport.id, selectedReport.recordType);
+      // Reload status history after update
+      const apiStatusHistory = await loadStatusHistory(selectedReport.id, selectedReport.recordType);
+      let combinedStatusHistory = [...apiStatusHistory];
+      
+      // Re-add document remarks as first entry
+      if (selectedReport.recordType === 'document' && selectedReport.remarks) {
+        const initialRemarksEntry = {
+          id: -1,
+          status: 'Created',
+          direction: selectedReport.direction || '',
+          remarks: selectedReport.remarks,
+          created_at: selectedReport.timestamp,
+          created_by: selectedReport.sender_name || 'System',
+          is_initial_remarks: true
+        };
+        combinedStatusHistory = [initialRemarksEntry, ...apiStatusHistory];
+      }
+      
+      // Re-add email body as first entry
+      if (selectedReport.recordType === 'email' && selectedReport.body) {
+        const initialEmailEntry = {
+          id: -2,
+          status: 'Sent',
+          direction: 'OUT',
+          remarks: selectedReport.body,
+          created_at: selectedReport.timestamp,
+          created_by: selectedReport.sender_name || 'System',
+          is_initial_content: true
+        };
+        combinedStatusHistory = [initialEmailEntry, ...apiStatusHistory];
+      }
+      
+      // Sort by date descending (newest first)
+      combinedStatusHistory.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      setStatusHistory(combinedStatusHistory);
+      
       await loadReports();
       
       setStatusUpdate({
-        status: statusUpdate.status,
-        direction: statusUpdate.direction,
+        status: '',
+        direction: '',
         remarks: '',
-        updatedBy: statusUpdate.updatedBy // Keep user name
+        updatedBy: statusUpdate.updatedBy
       });
 
       setShowUpdateStatusModal(false);
@@ -174,48 +257,6 @@ const ReportsPage = () => {
       alert('Failed to update status');
     } finally {
       setUpdatingStatus(false);
-    }
-  };
-
-  const quickUpdateStatus = async (status) => {
-    if (!selectedReport) return;
-
-    if (!statusUpdate.updatedBy.trim()) {
-      alert('Please enter your name first');
-      return;
-    }
-
-    try {
-      // Save user name to localStorage for future use
-      localStorage.setItem('statusUpdateUser', statusUpdate.updatedBy);
-      
-      const updateData = {
-        recordId: selectedReport.id,
-        recordType: selectedReport.recordType,
-        status: status,
-        direction: selectedReport.current_direction || selectedReport.direction || '',
-        remarks: `Status changed to ${status}`,
-        updatedBy: statusUpdate.updatedBy
-      };
-
-      await statusService.updateStatus(updateData);
-      
-      setSelectedReport(prev => ({
-        ...prev,
-        current_status: status,
-        status_updated_at: new Date().toISOString(),
-        status_updated_by: statusUpdate.updatedBy
-      }));
-
-      await loadStatusHistory(selectedReport.id, selectedReport.recordType);
-      await loadReports();
-      
-      setShowUpdateStatusModal(false);
-      alert(`Status updated to ${status}!`);
-      
-    } catch (error) {
-      console.error('Error in quick status update:', error);
-      alert('Failed to update status');
     }
   };
 
@@ -269,6 +310,26 @@ const ReportsPage = () => {
 
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDateToWords = (timestamp) => {
+    const date = new Date(timestamp);
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+  };
+
+  const formatDateTime = (timestamp) => {
+    const date = new Date(timestamp);
+    const dateStr = date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    const timeStr = date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    return `${dateStr} - ${timeStr}`;
   };
 
   const filteredReports = reports.filter(report => {
@@ -495,7 +556,7 @@ const ReportsPage = () => {
                     )}
                   </td>
                   <td className="date-cell">
-                    {new Date(report.timestamp).toLocaleDateString()}
+                    {formatDateToWords(report.timestamp)}
                   </td>
                   <td className="time-cell">
                     {formatTime(report.timestamp)}
@@ -523,187 +584,141 @@ const ReportsPage = () => {
         </div>
       </div>
 
-      {/* Details Modal */}
+      {/* Details Modal - New Design */}
       {showDetailsModal && selectedReport && (
         <div className="modal-overlay">
-          <div className="details-modal">
-            <div className="modal-header">
-              <div className="modal-title">
-                <h3>
+          <div className="modal new-design-modal">
+            <div className="header">
+              <div>
+                <h1>
                   {selectedReport.recordType === 'email' ? 'Email Details' : 'Document Details'}
-                </h3>
-                <span className="tracking-number-modal">{selectedReport.tracking_number}</span>
+                </h1>
+                <div className="doc-id">{selectedReport.tracking_number}</div>
               </div>
               <button 
-                className="close-modal"
+                className="close-btn"
                 onClick={() => setShowDetailsModal(false)}
               >
-                ✕
+                ×
               </button>
             </div>
-            
-            <div className="modal-content">
-              {/* Record Information - Improved Section */}
-              <div className="details-section record-information">
-                <h4 className="section-title-bold">Record Information</h4>
-                <div className="details-grid compact-grid">
-                  <div className="detail-item">
-                    <label className="bold-label">Tracking Number</label>
-                    <span className="bold-value">{selectedReport.tracking_number}</span>
+
+            <div className="content">
+              {/* Record Information Section */}
+              <div className="section">
+                <div className="section-header">
+                  <h2>Record Information</h2>
+                  <span className={`status-badge status-${selectedReport.current_status?.toLowerCase() || 'pending'}`}>
+                    {selectedReport.current_status || 'Pending'}
+                  </span>
+                </div>
+                <div className="info-grid">
+                  <div className="info-item">
+                    <div className="info-label">Sender</div>
+                    <div className="info-value">{selectedReport.sender_name}</div>
                   </div>
-                  <div className="detail-item">
-                    <label className="bold-label">Record Type</label>
-                    <span className={`record-type ${selectedReport.recordType}`}>
-                      {selectedReport.recordType === 'email' ? 'Email' : 'Document'}
-                    </span>
+                  <div className="info-item">
+                    <div className="info-label">Document Type</div>
+                    <div className="info-value">{selectedReport.documentType || selectedReport.displayType}</div>
                   </div>
-                  <div className="detail-item">
-                    <label className="bold-label">Document Type</label>
-                    <span className="type-badge">{selectedReport.documentType || selectedReport.displayType}</span>
+                  <div className="info-item">
+                    <div className="info-label">Subject</div>
+                    <div className="info-value">{selectedReport.subject}</div>
                   </div>
-                  <div className="detail-item">
-                    <label className="bold-label">Sender</label>
-                    <span className="bold-value">{selectedReport.sender_name}</span>
+                  <div className="info-item">
+                    <div className="info-label">Date & Time</div>
+                    <div className="info-value">{formatDateTime(selectedReport.timestamp)}</div>
                   </div>
-                  <div className="detail-item">
-                    <label className="bold-label">Current Status</label>
-                    <span className={`status-badge status-${selectedReport.current_status?.toLowerCase() || 'pending'} highlight-badge`}>
-                      {selectedReport.current_status || 'Pending'}
-                    </span>
-                  </div>
-                  {selectedReport.recordType === 'email' ? (
-                    <div className="detail-item">
-                      <label className="bold-label">Recipient</label>
-                      <span className="email-address bold-value">{selectedReport.recipient}</span>
-                    </div>
-                  ) : (
-                    <div className="detail-item">
-                      <label className="bold-label">Direction</label>
-                      <span className={`direction-badge direction-${selectedReport.recipient?.toLowerCase()}`}>
-                        {selectedReport.recipient}
-                      </span>
-                    </div>
-                  )}
-                  <div className="detail-item full-width">
-                    <label className="bold-label">Subject</label>
-                    <span className="subject bold-value">{selectedReport.subject}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label className="bold-label">Date</label>
-                    <span className="bold-value">{new Date(selectedReport.timestamp).toLocaleDateString()}</span>
-                  </div>
-                  <div className="detail-item">
-                    <label className="bold-label">Time</label>
-                    <span className="bold-value">{formatTime(selectedReport.timestamp)}</span>
-                  </div>
-                  {selectedReport.status_updated_at && (
-                    <div className="detail-item">
-                      <label className="bold-label">Status Updated</label>
-                      <span className="bold-value">{new Date(selectedReport.status_updated_at).toLocaleString()}</span>
-                    </div>
-                  )}
-                  {selectedReport.status_updated_by && (
-                    <div className="detail-item">
-                      <label className="bold-label">Updated By</label>
-                      <span className="bold-value">{selectedReport.status_updated_by}</span>
-                    </div>
-                  )}
                 </div>
               </div>
 
-              {/* Content with Attachments */}
-              <div className="content-attachments-section">
-                <div className="content-section">
-                  <h4 className="section-title">{selectedReport.recordType === 'email' ? 'Email Content' : 'Document Remarks'}</h4>
-                  <div className="content-preview">
-                    {selectedReport.recordType === 'email' ? selectedReport.body : selectedReport.remarks}
+              {/* Attachments Section */}
+              {selectedReport.attachment_count > 0 && (
+                <div className="section">
+                  <div className="section-header">
+                    <h2>Attachments ({selectedReport.attachment_count})</h2>
                   </div>
-                </div>
-
-                {/* Attachments */}
-                {selectedReport.attachment_count > 0 && (
-                  <div className="attachments-section">
-                    <h4 className="section-title">Attachments ({selectedReport.attachment_count})</h4>
+                  <div className="attachments-list">
                     {selectedReport.attachment_names && selectedReport.attachment_names.length > 0 ? (
-                      <div className="attachment-list">
-                        {selectedReport.attachment_names.map((fileName, index) => {
-                          const savedFileName = selectedReport.attachment_paths?.[index] || fileName;
-                          return (
-                            <div key={index} className="attachment-item">
-                              <span className="file-name">{fileName}</span>
-                              <button 
-                                className="download-btn"
-                                onClick={() => downloadAttachment(savedFileName, fileName)}
-                              >
-                                Download
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      selectedReport.attachment_names.map((fileName, index) => {
+                        const savedFileName = selectedReport.attachment_paths?.[index] || fileName;
+                        return (
+                          <div key={index} className="attachment-item">
+                            <span className="file-name">{fileName}</span>
+                            <button 
+                              className="download-btn"
+                              onClick={() => downloadAttachment(savedFileName, fileName)}
+                            >
+                              Download
+                            </button>
+                          </div>
+                        );
+                      })
                     ) : (
                       <div className="no-attachments">No attachment information available</div>
                     )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Status History - Highlighted Section */}
-              <div className="history-section highlighted-section">
-                <h4 className="section-title-bold highlight-title">Status History</h4>
+              {/* Status History Section */}
+              <div className="section">
+                <div className="section-header">
+                  <h2>Status History</h2>
+                  <button 
+                    className="update-btn"
+                    onClick={handleOpenUpdateStatus}
+                  >
+                    Update Status
+                  </button>
+                </div>
+
                 {statusHistory.length > 0 ? (
-                  <div className="history-list">
+                  <div className="timeline">
                     {statusHistory.map((history, index) => (
-                      <div key={history.id} className={`history-item ${index === 0 ? 'latest-history' : ''}`}>
-                        <div className="history-main">
-                          <span className={`history-status status-${history.status?.toLowerCase()} bold-status`}>
-                            {history.status}
-                          </span>
-                          <span className="history-time bold-time">
-                            {new Date(history.created_at).toLocaleString()}
-                          </span>
+                      <div key={history.id} className="timeline-item">
+                        <div className="timeline-header">
+                          <div className="timeline-status">{history.status}</div>
+                          <div className="timeline-date">
+                            {formatDateToWords(history.created_at)} · {formatTime(history.created_at)}
+                          </div>
                         </div>
-                        <div className="history-details">
-                          {history.direction && (
-                            <span className="bold-detail">Direction: <strong>{history.direction}</strong></span>
-                          )}
-                          {history.remarks && (
-                            <span className="bold-detail">Remarks: <strong>{history.remarks}</strong></span>
-                          )}
-                          <span className="history-by bold-by">By: <strong>{history.created_by}</strong></span>
+                        {history.direction && history.direction !== '' && (
+                          <div className="detail">
+                            <strong>Direction:</strong> {history.direction}
+                          </div>
+                        )}
+                        {history.remarks && (
+                          <div className="detail">
+                            <strong>
+                              {history.is_initial_remarks ? 'Document Remarks:' : 
+                               history.is_initial_content ? 'Email Content:' : 'Remarks:'}
+                            </strong> {history.remarks}
+                          </div>
+                        )}
+                        <div className="detail">
+                          <strong>By:</strong> {history.created_by}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="no-history">No status history available</div>
+                  <div className="no-history">
+                    No status history available
+                    {selectedReport.recordType === 'document' && selectedReport.remarks && (
+                      <div className="no-history-remark">
+                        Note: Document has remarks but no status history.
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-
-              {/* Update Status Button */}
-              <div className="update-status-section">
-                <button 
-                  className="update-status-btn primary-btn"
-                  onClick={handleOpenUpdateStatus}
-                >
-                  Update Status
-                </button>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button 
-                className="close-btn"
-                onClick={() => setShowDetailsModal(false)}
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Update Status Modal */}
+      {/* Update Status Modal - Without Cancel Button */}
       {showUpdateStatusModal && selectedReport && (
         <div className="modal-overlay">
           <div className="update-status-modal">
@@ -774,45 +789,19 @@ const ReportsPage = () => {
                   />
                 </div>
 
-                <div className="form-actions">
-                  <div className="quick-actions">
-                    <span className="quick-label bold-label">Quick Actions:</span>
-                    <button 
-                      className="quick-btn pending"
-                      onClick={() => quickUpdateStatus('Pending')}
-                      disabled={!statusUpdate.updatedBy.trim()}
-                    >
-                      Mark Pending
-                    </button>
-                    <button 
-                      className="quick-btn completed"
-                      onClick={() => quickUpdateStatus('Completed')}
-                      disabled={!statusUpdate.updatedBy.trim()}
-                    >
-                      Mark Completed
-                    </button>
-                  </div>
-                  <div className="main-action">
-                    <button 
-                      className="update-btn primary-btn"
-                      onClick={handleUpdateStatusSubmit}
-                      disabled={updatingStatus || !statusUpdate.status || !statusUpdate.updatedBy.trim()}
-                    >
-                      {updatingStatus ? 'Updating...' : 'Update Status'}
-                    </button>
-                  </div>
+                <div className="form-actions-single">
+                  <button 
+                    className="update-btn primary-btn full-width-btn"
+                    onClick={handleUpdateStatusSubmit}
+                    disabled={updatingStatus || !statusUpdate.status || !statusUpdate.updatedBy.trim()}
+                  >
+                    {updatingStatus ? 'Updating...' : 'Update Status'}
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div className="modal-footer">
-              <button 
-                className="close-btn secondary-btn"
-                onClick={handleCloseUpdateStatus}
-              >
-                Cancel
-              </button>
-            </div>
+            {/* Removed Modal Footer with Cancel Button */}
           </div>
         </div>
       )}
