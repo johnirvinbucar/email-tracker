@@ -5,6 +5,5 @@ const router = express.Router();
 
 router.post('/log', logDocument);
 router.get('/logs', getDocumentLogs);
-router.get('/stats', getDocumentStats);
 
 module.exports = router;

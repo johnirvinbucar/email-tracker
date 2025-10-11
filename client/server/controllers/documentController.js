@@ -114,23 +114,6 @@ const getDocumentLogs = async (req, res) => {
   }
 };
 
-const getDocumentStats = async (req, res) => {
-  try {
-    const stats = await DocumentLog.getStats();
-    
-    res.json({
-      success: true,
-      data: stats
-    });
-  } catch (error) {
-    console.error('Error fetching document stats:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch document statistics',
-      error: error.message
-    });
-  }
-};
 
 const getByTrackingNumber = async (req, res) => {
   try {
@@ -161,5 +144,4 @@ const getByTrackingNumber = async (req, res) => {
 module.exports = {
   logDocument,
   getDocumentLogs,
-  getDocumentStats
 };
