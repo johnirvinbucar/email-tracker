@@ -340,16 +340,6 @@ const handleUpdateStatusSubmit = async () => {
     document.body.removeChild(link);
   };
 
-  const downloadStatusAttachment = (filename) => {
-    const downloadUrl = `http://localhost:5000/api/status/attachment/${filename}`;
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const exportToCSV = () => {
     const headers = ['Tracking Number', 'Type', 'Category', 'Subject', 'Status', 'Forwarded To', 'C/OF', 'Date', 'Time'];
     const csvData = filteredReports.map(report => [
@@ -844,19 +834,16 @@ const handleUpdateStatusSubmit = async () => {
                 </div>
               </div>
               
-              {/* Attachment row */}
+              {/* Attachment row - UPDATED: Show only filename with NEW label, no download icon */}
               {history.attachment_filename && (
                 <div className="detail-row">
                   <div className="detail-item full-width">
                     <div className="detail-label">Attachment</div>
                     <div className="detail-value">
                       <div className="attachment-with-badge">
-                        <button 
-                          className="download-attachment-btn"
-                          onClick={() => downloadStatusAttachment(history.attachment_filename)}
-                        >
-                        {history.attachment_filename}
-                        </button>
+                        <span className="attachment-filename">
+                          {history.attachment_filename}
+                        </span>
                         {/* Show NEW badge only on the most recent status history item with attachment */}
                         {index === 0 && statusHistory[0].attachment_filename === history.attachment_filename && (
                           <span className="new-attachment-badge">NEW</span>
@@ -975,23 +962,23 @@ const handleUpdateStatusSubmit = async () => {
                   />
                 </div>
 
-                {/* New Attachment Field */}
+                {/* Updated Attachment Field - Now accepts all office documents */}
                 <div className="form-group full-width">
                   <label className="bold-label">Attachment</label>
                   <input 
                     type="file"
                     onChange={handleAttachmentChange}
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.zip,.rar"
                     className="file-input"
                   />
                   <div className="file-input-note">
-                    Upload PDF, Word, or image files to update record information
+                    Upload PDF, Word, Excel, PowerPoint, images, or other document files
                   </div>
                 </div>
 
-                <div className="form-actions-single">
+                <div className="form-actions">
                   <button 
-                    className="update-btn primary-btn full-width-btn"
+                    className="update-btn primary-btn"
                     onClick={handleUpdateStatusSubmit}
                     disabled={updatingStatus || !statusUpdate.status || !statusUpdate.updatedBy.trim()}
                   >

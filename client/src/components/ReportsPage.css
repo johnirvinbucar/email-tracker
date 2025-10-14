@@ -311,7 +311,7 @@
 /* Action Buttons */
 .view-update-btn {
   padding: 6px 12px;
-  background: #1a73e8;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   color: white;
   border: none;
   border-radius: 6px;
@@ -323,7 +323,7 @@
 }
 
 .view-update-btn:hover {
-  background: #1557b0;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   transform: translateY(-1px);
 }
 
@@ -372,7 +372,6 @@
   width: 90%;
   margin: 0 auto;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -501,7 +500,7 @@
 }
 
 .update-btn {
-  background: #1a73e8;
+  background: #DC143C;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -513,7 +512,7 @@
 }
 
 .update-btn:hover {
-  background: #1557b0;
+  background: #DC143C;
 }
 
 /* Timeline */
@@ -1052,7 +1051,7 @@
 }
 
 .primary-btn {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  background: #DC143C;
   color: white;
   border: none;
   border-radius: 12px;
@@ -1204,7 +1203,7 @@
 .download-btn.small {
   padding: 4px 8px;
   font-size: 12px;
-  background: #007bff;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   color: white;
   border: none;
   border-radius: 3px;
@@ -1212,14 +1211,14 @@
 }
 
 .download-btn.small:hover {
-  background: #0056b3;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
 }
 /* File Item Styles with New/Recent Labels */
 .file-item {
   display: flex;
   justify-content: between;
   align-items: center;
-  padding: 12px;
+  padding: 9px;
   border-radius: 6px;
   margin-bottom: 8px;
   border: 1px solid #e9ecef;
@@ -1309,7 +1308,7 @@
 .download-btn.small {
   padding: 6px 12px;
   font-size: 12px;
-  background: #007bff;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   color: white;
   border: none;
   border-radius: 4px;
@@ -1318,7 +1317,7 @@
 }
 
 .download-btn.small:hover {
-  background: #0056b3;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
 }
 
 .download-attachment-btn {
@@ -1338,7 +1337,7 @@
 
 /* File Group Styles */
 .file-group {
-  margin-bottom: 16px;
+  margin-bottom: 0px;
 }
 
 .file-group-label {
@@ -1354,4 +1353,74 @@
 
 .file-icon {
   font-size: 14px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.attachment-filename {
+  color: #666;
+  font-style: italic;
+}
+
+/* Multiple file attachments styles */
+.attachments-list {
+  margin-top: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 10px;
+  background: #f9f9f9;
+}
+
+.attachments-label {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.attachment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  margin-bottom: 5px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+}
+
+.attachment-name {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+}
+
+.remove-attachment-btn {
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10px;
+}
+
+.remove-attachment-btn:hover {
+  background: #cc0000;
+}
+
+.file-input-note {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+  font-style: italic;
 }
