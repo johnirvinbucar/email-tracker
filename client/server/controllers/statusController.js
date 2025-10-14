@@ -4,9 +4,26 @@ const DocumentLog = require('../models/DocumentLog');
 
 const updateStatus = async (req, res) => {
   try {
-    const { recordId, recordType, status, direction, remarks, updatedBy } = req.body;
+    const { 
+      recordId, 
+      recordType, 
+      status, 
+      direction, 
+      forwarded_to,  
+      cof,          
+      remarks, 
+      updatedBy 
+    } = req.body;
 
-    console.log('📝 Updating status:', { recordId, recordType, status, direction, updatedBy });
+    console.log('📝 Updating status with data:', { 
+      recordId, 
+      recordType, 
+      status, 
+      direction, 
+      forwarded_to, 
+      cof, 
+      updatedBy 
+    });
 
     // Validate required fields
     if (!recordId || !recordType || !status || !updatedBy) {
@@ -18,12 +35,14 @@ const updateStatus = async (req, res) => {
 
     let updatedRecord;
     
-    // Update the main record
+    // Update the main record with the new forwarded_to and cof
     if (recordType === 'email') {
       updatedRecord = await EmailLog.updateStatus(recordId, {
         status,
         direction,
         remarks,
+        forwarded_to: forwarded_to || '',
+        cof: cof || '', 
         updated_by: updatedBy
       });
     } else if (recordType === 'document') {
@@ -31,6 +50,8 @@ const updateStatus = async (req, res) => {
         status,
         direction,
         remarks,
+        forwarded_to: forwarded_to || '',
+        cof: cof || '',
         updated_by: updatedBy
       });
     } else {
@@ -54,10 +75,12 @@ const updateStatus = async (req, res) => {
       status,
       direction,
       remarks,
+      forwarded_to: forwarded_to || '',
+      cof: cof || '',
       created_by: updatedBy
     });
 
-    console.log('✅ Status updated successfully');
+    console.log('✅ Status updated successfully. Main record:', updatedRecord);
 
     res.json({
       success: true,

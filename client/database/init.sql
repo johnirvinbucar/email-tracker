@@ -1,39 +1,47 @@
--- Create database (run this separately if needed)
--- CREATE DATABASE email_tracker;
+-- Add status tracking columns to email_logs table
+ALTER TABLE email_logs 
+ADD COLUMN IF NOT EXISTS tracking_number VARCHAR UNIQUE,
+ADD COLUMN IF NOT EXISTS current_status VARCHAR(20) DEFAULT 'Pending',
+ADD COLUMN IF NOT EXISTS current_direction VARCHAR(10),
+ADD COLUMN IF NOT EXISTS current_status_remarks TEXT,
+ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS status_updated_by VARCHAR,
+ADD COLUMN IF NOT EXISTS forwarded_to TEXT,
+ADD COLUMN IF NOT EXISTS cof TEXT,
+ADD COLUMN IF NOT EXISTS current_forwarded_to TEXT,
+ADD COLUMN IF NOT EXISTS current_cof TEXT;
 
--- Email logs table with all the new fields
-CREATE TABLE IF NOT EXISTS email_logs (
+-- Add status tracking columns to document_logs table
+ALTER TABLE document_logs 
+ADD COLUMN IF NOT EXISTS tracking_number VARCHAR UNIQUE,
+ADD COLUMN IF NOT EXISTS current_status VARCHAR(20) DEFAULT 'Pending',
+ADD COLUMN IF NOT EXISTS current_direction VARCHAR(10),
+ADD COLUMN IF NOT EXISTS current_status_remarks TEXT,
+ADD COLUMN IF NOT EXISTS status_updated_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS status_updated_by VARCHAR,
+ADD COLUMN IF NOT EXISTS forwarded_to TEXT,
+ADD COLUMN IF NOT EXISTS cof TEXT,
+ADD COLUMN IF NOT EXISTS current_forwarded_to TEXT,
+ADD COLUMN IF NOT EXISTS current_cof TEXT;
+
+-- Create status_history table if it doesn't exist
+CREATE TABLE IF NOT EXISTS status_history (
     id SERIAL PRIMARY KEY,
-    to_email VARCHAR(255) NOT NULL,
-    subject TEXT NOT NULL,
-    body TEXT,
-    type VARCHAR(20) DEFAULT 'Communication',
-    sender_name VARCHAR(255),
-    attachment_count INTEGER DEFAULT 0,
-    attachment_names TEXT[],
-    attachment_paths TEXT[],
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ip_address VARCHAR(45),
-    user_agent TEXT
+    record_id INTEGER NOT NULL,
+    record_type VARCHAR(10) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    direction VARCHAR(10),
+    remarks TEXT,
+    created_by VARCHAR NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    forwarded_to TEXT,
+    cof TEXT
 );
 
--- Index for better query performance
-CREATE INDEX IF NOT EXISTS idx_email_logs_created_at ON email_logs(created_at);
-CREATE INDEX IF NOT EXISTS idx_email_logs_to_email ON email_logs(to_email);
-CREATE INDEX IF NOT EXISTS idx_email_logs_type ON email_logs(type);
-CREATE INDEX IF NOT EXISTS idx_email_logs_sender_name ON email_logs(sender_name);
-
-CREATE TABLE IF NOT EXISTS document_logs (
-  id SERIAL PRIMARY KEY,
-  sender_name VARCHAR NOT NULL,
-  doc_type VARCHAR NOT NULL,
-  document_subject VARCHAR NOT NULL,
-  direction VARCHAR NOT NULL,
-  remarks TEXT,
-  attachment_count INTEGER DEFAULT 0,
-  attachment_names TEXT[],
-  attachment_paths TEXT[],
-  ip_address VARCHAR,
-  user_agent TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_status_history_record ON status_history(record_id, record_type);
+CREATE INDEX IF NOT EXISTS idx_status_history_created_at ON status_history(created_at);
+CREATE INDEX IF NOT EXISTS idx_email_logs_tracking ON email_logs(tracking_number);
+CREATE INDEX IF NOT EXISTS idx_document_logs_tracking ON document_logs(tracking_number);
+CREATE INDEX IF NOT EXISTS idx_email_logs_current_status ON email_logs(current_status);
+CREATE INDEX IF NOT EXISTS idx_document_logs_current_status ON document_logs(current_status);

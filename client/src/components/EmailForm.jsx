@@ -13,7 +13,9 @@ const EmailForm = () => {
     docType: 'IAR',
     direction: 'OUT',
     remarks: '',
-    documentSubject: ''
+    documentSubject: '',
+    forwardedTo: '', 
+    cof: '' 
   });
   
   const [attachments, setAttachments] = useState([]);
@@ -23,13 +25,8 @@ const EmailForm = () => {
   const [savedLogId, setSavedLogId] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState(null);
-
-  // Get dynamic headers based on mode
-  const getSidebarHeader = () => {
-    return communicationMode === 'Email' 
-      ? { icon: '📧', title: 'Email Communication' }
-      : { icon: '📄', title: 'Document Record' };
-  };
+  const [showTrackingPopup, setShowTrackingPopup] = useState(false);
+  const [copyButtonText, setCopyButtonText] = useState('Copy');
 
   const getMainHeader = () => {
     return communicationMode === 'Email' 
@@ -89,7 +86,9 @@ const EmailForm = () => {
         docType: 'IAR',
         direction: 'OUT',
         remarks: '',
-        documentSubject: ''
+        documentSubject: '',
+        forwardedTo: '', 
+        cof: '' 
       }));
     } else {
       setFormData(prev => ({
@@ -128,6 +127,30 @@ const EmailForm = () => {
 
   const removeAttachment = (index) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Copy tracking number to clipboard
+  const copyTrackingNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(trackingNumber);
+      setCopyButtonText('Copied!');
+      setTimeout(() => {
+        setCopyButtonText('Copy');
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = trackingNumber;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopyButtonText('Copied!');
+      setTimeout(() => {
+        setCopyButtonText('Copy');
+      }, 2000);
+    }
   };
 
   const handleEmailSubmit = async (e) => {
@@ -188,23 +211,29 @@ const EmailForm = () => {
         documentSubject: formData.documentSubject,
         direction: formData.direction,
         remarks: formData.remarks,
+        forwardedTo: formData.forwardedTo, 
+        cof: formData.cof, 
         attachments
       };
 
       const response = await documentService.logDocument(documentData);
       const trackingNumber = response.data.data.tracking_number;
 
-      setMessage(`Document record saved successfully! Tracking Number: ${trackingNumber}`);
+      setTrackingNumber(trackingNumber);
+      setShowTrackingPopup(true);
+      // setMessage(`Document record saved successfully!`);
       
+      // Reset form after success but keep tracking number visible
       setTimeout(() => {
         setFormData(prev => ({
           ...prev,
           senderName: '',
           documentSubject: '',
-          remarks: ''
+          remarks: '',
+          forwardedTo: '',
+          cof: '' 
         }));
         setAttachments([]);
-        setMessage('');
       }, 5000);
       
     } catch (error) {
@@ -219,7 +248,8 @@ const EmailForm = () => {
     setShowConfirmation(false);
     
     if (confirmed) {
-      setMessage(`Thank you for confirming! Email was sent successfully. Tracking Number: ${trackingNumber}`);
+      // setMessage(`Thank you for confirming! Email was sent successfully.`);
+      setShowTrackingPopup(true);
       
       setTimeout(() => {
         setFormData({
@@ -231,18 +261,19 @@ const EmailForm = () => {
           docType: 'IAR',
           direction: 'OUT',
           remarks: '',
-          documentSubject: ''
+          documentSubject: '',
+          forwardedTo: '', 
+          cof: '' 
         });
         setAttachments([]);
         setMessage('');
         setSavedLogId(null);
-        setTrackingNumber(null);
       }, 5000);
     } else {
-      setMessage(`Email was logged but marked as not sent. Tracking Number: ${trackingNumber}`);
+      setMessage(`Email was logged but marked as not sent.`);
+      setShowTrackingPopup(true);
       setTimeout(() => {
         setMessage('');
-        setTrackingNumber(null);
       }, 5000);
     }
     
@@ -259,15 +290,21 @@ const EmailForm = () => {
       docType: 'IAR',
       direction: 'OUT',
       remarks: '',
-      documentSubject: ''
+      documentSubject: '',
+      forwardedTo: '', // Reset new fields
+      cof: '' // Reset new fields
     });
     setAttachments([]);
     setMessage('');
     setSavedLogId(null);
     setTrackingNumber(null);
+    setShowTrackingPopup(false);
   };
 
-  const sidebarHeader = getSidebarHeader();
+  const closeTrackingPopup = () => {
+    setShowTrackingPopup(false);
+  };
+
   const mainHeader = getMainHeader();
 
   return (
@@ -275,7 +312,6 @@ const EmailForm = () => {
       <div className="layout-container">
         {/* Left Sidebar */}
         <div className="sidebar">
-          
           {/* Email-specific instructions */}
           {communicationMode === 'Email' && (
             <div className="instruction-panel">
@@ -332,7 +368,7 @@ const EmailForm = () => {
         </div>
 
         {/* Main Form Area */}
-        <div className="main-content-email">
+        <div className="main-content-form">
           <div className="form-container">
             <div className="form-header">
               <h2>{mainHeader}</h2>
@@ -372,7 +408,7 @@ const EmailForm = () => {
                 {/* Sender Name Field */}
                 <div className="form-group modern-form-group">
                   <label htmlFor="senderName" className="modern-label">
-                    Your Name
+                    Biller Maker
                   </label>
                   <input
                     type="text"
@@ -468,16 +504,18 @@ const EmailForm = () => {
                         onChange={handleInputChange}
                         className="modern-select"
                       >
-                        <option value="IAR">IAR</option>
                         <option value="ARE">ARE</option>
-                        <option value="PAAS">PAAS</option>
                         <option value="BILLS">BILLS</option>
+                        <option value="Commu">Commu</option>
+                        <option value="IAR">IAR</option>
                         <option value="LEAVE">LEAVE</option>
                         <option value="NTP">NTP</option>
+                        <option value="PAAS">PAAS</option>
+                        <option value="Training">Training</option>
                       </select>
                     </div>
 
-                                        <div className="form-group modern-form-group">
+                    <div className="form-group modern-form-group">
                       <label htmlFor="direction" className="modern-label">
                         Direction
                       </label>
@@ -509,7 +547,36 @@ const EmailForm = () => {
                       />
                     </div>
 
+                    {/* NEW: Forwarded to and C/of fields */}
+                    <div className="form-group modern-form-group">
+                      <label htmlFor="forwardedTo" className="modern-label">
+                        Forwarded to
+                      </label>
+                      <input
+                        type="text"
+                        id="forwardedTo"
+                        name="forwardedTo"
+                        value={formData.forwardedTo}
+                        onChange={handleInputChange}
+                        placeholder="Enter forwarded to details"
+                        className="modern-input"
+                      />
+                    </div>
 
+                    <div className="form-group modern-form-group">
+                      <label htmlFor="cof" className="modern-label">
+                        C/of
+                      </label>
+                      <input
+                        type="text"
+                        id="cof"
+                        name="cof"
+                        value={formData.cof}
+                        onChange={handleInputChange}
+                        placeholder="Enter C/of details"
+                        className="modern-input"
+                      />
+                    </div>
 
                     <div className="form-group modern-form-group full-width">
                       <label htmlFor="remarks" className="modern-label">
@@ -591,12 +658,12 @@ const EmailForm = () => {
                   className={`modern-primary-btn ${isSubmitting ? 'submitting' : ''}`}
                 >
                   <span className="btn-icon">
-                    {communicationMode === 'Email' ? '📧' : '💾'}
+                    {communicationMode === 'Email'}
                   </span> 
                   <span className="btn-text">
                     {isSubmitting 
                       ? (communicationMode === 'Email' ? 'Opening...' : 'Saving...')
-                      : (communicationMode === 'Email' ? 'Open in Email Client' : 'Save Document Record')
+                      : (communicationMode === 'Email' ? 'Save Record' : 'Save Record')
                     }
                   </span>
                 </button>
@@ -605,11 +672,53 @@ const EmailForm = () => {
                   className="modern-secondary-btn" 
                   onClick={clearForm}
                 >
-                  <span className="btn-icon">🗑️</span>
                   <span className="btn-text">Clear Form</span>
                 </button>
               </div>
             </form>
+
+            {/* Tracking Number Popup */}
+            {showTrackingPopup && trackingNumber && (
+              <div className="tracking-popup-overlay">
+                <div className="tracking-popup">
+                  <div className="tracking-popup-header">
+                    <div className="tracking-icon">📋</div>
+                    <h3>Tracking Number Generated</h3>
+                    <button 
+                      className="tracking-close-btn"
+                      onClick={closeTrackingPopup}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="tracking-content">
+                    <p className="tracking-label">Your tracking number has been generated successfully:</p>
+                    <div className="tracking-number-container">
+                      <span className="tracking-number">{trackingNumber}</span>
+                      <button 
+                        className="copy-tracking-btn"
+                        onClick={copyTrackingNumber}
+                      >
+                        <span className="copy-icon">📄</span>
+                        {copyButtonText}
+                      </button>
+                    </div>
+                    <p className="tracking-note">
+                      Please save this tracking number for future reference. 
+                      You can use it to track the status of your {communicationMode.toLowerCase()}.
+                    </p>
+                  </div>
+                  <div className="tracking-popup-actions">
+                    <button 
+                      className="tracking-ok-btn"
+                      onClick={closeTrackingPopup}
+                    >
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Confirmation Dialog (Email mode only) */}
             {showConfirmation && communicationMode === 'Email' && (

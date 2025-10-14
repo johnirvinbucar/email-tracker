@@ -8,14 +8,16 @@ class StatusHistory {
         record_type,
         status,
         direction,
+        forwarded_to,
+        cof,
         remarks,
         created_by
       } = statusData;
 
       const query = `
         INSERT INTO status_history 
-        (record_id, record_type, status, direction, remarks, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        (record_id, record_type, status, direction, forwarded_to, cof, remarks, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
       `;
 
@@ -24,11 +26,16 @@ class StatusHistory {
         record_type,
         status,
         direction,
+        forwarded_to || '',
+        cof || '',
         remarks,
         created_by
       ];
 
+      console.log('💾 Creating status history with values:', values);
+
       const result = await pool.query(query, values);
+      console.log('✅ Status history created:', result.rows[0]);
       return result.rows[0];
     } catch (error) {
       console.error('Error in StatusHistory.create:', error);
@@ -44,6 +51,7 @@ class StatusHistory {
         ORDER BY created_at DESC
       `;
       const result = await pool.query(query, [recordId, recordType]);
+      console.log(`📊 Found ${result.rows.length} status history entries for ${recordType} ${recordId}`);
       return result.rows;
     } catch (error) {
       console.error('Error in StatusHistory.findByRecord:', error);

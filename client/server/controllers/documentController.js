@@ -13,6 +13,8 @@ const logDocument = async (req, res) => {
       documentSubject, 
       direction, 
       remarks, 
+      forwardedTo, // NEW: Add this field
+      cof, // NEW: Add this field
       attachments = [] 
     } = req.body;
     
@@ -59,6 +61,8 @@ const logDocument = async (req, res) => {
       document_subject: documentSubject,
       direction: direction,
       remarks: remarks || '',
+      forwarded_to: forwardedTo || '', 
+      cof: cof || '', 
       attachment_count: savedFiles.length,
       attachment_names: savedFiles.map(file => file.originalName),
       attachment_paths: savedFiles.map(file => file.savedName),
@@ -114,7 +118,6 @@ const getDocumentLogs = async (req, res) => {
   }
 };
 
-
 const getByTrackingNumber = async (req, res) => {
   try {
     const { trackingNumber } = req.params;
@@ -141,7 +144,28 @@ const getByTrackingNumber = async (req, res) => {
   }
 };
 
+// NEW: Add stats endpoint
+const getDocumentStats = async (req, res) => {
+  try {
+    const stats = await DocumentLog.getStats();
+    
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Error fetching document stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch document statistics',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   logDocument,
   getDocumentLogs,
+  getByTrackingNumber,
+  getDocumentStats // NEW: Export the stats function
 };

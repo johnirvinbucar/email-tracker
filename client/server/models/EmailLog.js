@@ -91,11 +91,13 @@ class EmailLog {
     }
   }
 
-  static async updateStatus(emailId, statusData) {
+static async updateStatus(emailId, statusData) {
   try {
     const {
       status,
       direction,
+      forwarded_to,
+      cof,
       remarks,
       updated_by
     } = statusData;
@@ -105,20 +107,26 @@ class EmailLog {
       SET 
         current_status = $1,
         current_direction = $2,
-        current_status_remarks = $3,
+        current_forwarded_to = $3,
+        current_cof = $4,
+        current_status_remarks = $5,
         status_updated_at = NOW(),
-        status_updated_by = $4
-      WHERE id = $5
+        status_updated_by = $6
+      WHERE id = $7
       RETURNING *
     `;
 
     const values = [
       status,
       direction,
+      forwarded_to || '',
+      cof || '',
       remarks,
       updated_by,
       emailId
     ];
+
+    console.log('📝 Updating email_logs with values:', values);
 
     const result = await pool.query(query, values);
     return result.rows[0];

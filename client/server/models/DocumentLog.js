@@ -13,6 +13,8 @@ class DocumentLog {
         document_subject,
         direction,
         remarks,
+        forwarded_to, 
+        cof,
         attachment_count = 0,
         attachment_names = [],
         attachment_paths = [],
@@ -22,8 +24,8 @@ class DocumentLog {
 
       const query = `
         INSERT INTO document_logs 
-        (tracking_number, sender_name, doc_type, document_subject, direction, remarks, attachment_count, attachment_names, attachment_paths, ip_address, user_agent)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        (tracking_number, sender_name, doc_type, document_subject, direction, remarks, forwarded_to, cof, attachment_count, attachment_names, attachment_paths, ip_address, user_agent)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *
       `;
 
@@ -34,6 +36,8 @@ class DocumentLog {
         document_subject,
         direction,
         remarks,
+        forwarded_to || '', 
+        cof || '', 
         attachment_count,
         attachment_names,
         attachment_paths,
@@ -90,12 +94,13 @@ class DocumentLog {
       throw error;
     }
   }
-
-  static async updateStatus(documentId, statusData) {
+static async updateStatus(documentId, statusData) {
   try {
     const {
       status,
       direction,
+      forwarded_to,
+      cof,
       remarks,
       updated_by
     } = statusData;
@@ -105,20 +110,26 @@ class DocumentLog {
       SET 
         current_status = $1,
         current_direction = $2,
-        current_status_remarks = $3,
+        current_forwarded_to = $3,
+        current_cof = $4,
+        current_status_remarks = $5,
         status_updated_at = NOW(),
-        status_updated_by = $4
-      WHERE id = $5
+        status_updated_by = $6
+      WHERE id = $7
       RETURNING *
     `;
 
     const values = [
       status,
       direction,
+      forwarded_to || '',
+      cof || '',
       remarks,
       updated_by,
       documentId
     ];
+
+    console.log('📝 Updating document_logs with values:', values);
 
     const result = await pool.query(query, values);
     return result.rows[0];
@@ -128,17 +139,55 @@ class DocumentLog {
   }
 }
 
-static async findById(id) {
-  try {
-    const query = 'SELECT * FROM document_logs WHERE id = $1';
-    const result = await pool.query(query, [id]);
-    return result.rows[0];
-  } catch (error) {
-    console.error('Error in DocumentLog.findById:', error);
-    throw error;
+  static async findById(id) {
+    try {
+      const query = 'SELECT * FROM document_logs WHERE id = $1';
+      const result = await pool.query(query, [id]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error in DocumentLog.findById:', error);
+      throw error;
+    }
   }
-}
 
+  // Add method to get stats
+  static async getStats() {
+    try {
+      // Total documents count
+      const totalQuery = 'SELECT COUNT(*) as total FROM document_logs';
+      
+      // Documents by type
+      const byTypeQuery = `
+        SELECT doc_type as _id, COUNT(*) as count 
+        FROM document_logs 
+        GROUP BY doc_type 
+        ORDER BY count DESC
+      `;
+      
+      // Documents by direction
+      const byDirectionQuery = `
+        SELECT direction as _id, COUNT(*) as count 
+        FROM document_logs 
+        GROUP BY direction 
+        ORDER BY count DESC
+      `;
+
+      const [totalResult, byTypeResult, byDirectionResult] = await Promise.all([
+        pool.query(totalQuery),
+        pool.query(byTypeQuery),
+        pool.query(byDirectionQuery)
+      ]);
+
+      return {
+        total: parseInt(totalResult.rows[0].total),
+        byType: byTypeResult.rows,
+        byDirection: byDirectionResult.rows
+      };
+    } catch (error) {
+      console.error('Error in DocumentLog.getStats:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = DocumentLog;
