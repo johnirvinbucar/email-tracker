@@ -4,7 +4,7 @@ import './ReportsPage.css';
 
 // Helper function to get the correct status badge class
 const getStatusBadgeClass = (status) => {
-  if (!status) return 'status-pending';
+  if (!status) return 'status-pending'; 
   
   const statusMap = {
     'pending': 'status-pending',
@@ -212,64 +212,61 @@ const handleUpdateStatusSubmit = async () => {
     
     localStorage.setItem('statusUpdateUser', statusUpdate.updatedBy);
     
-    const updateData = {
-      recordId: selectedReport.id,
-      recordType: selectedReport.recordType,
-      status: statusUpdate.status,
-      direction: statusUpdate.direction,
-      forwarded_to: statusUpdate.forwardedTo,
-      cof: statusUpdate.cof,
-      remarks: statusUpdate.remarks,
-      updatedBy: statusUpdate.updatedBy,
-      attachment: statusUpdate.attachment
-    };
-
-    console.log('📤 Sending update data:', updateData);
-
-    let formData;
+    // Create FormData object
+    const formData = new FormData();
+    formData.append('recordId', selectedReport.id.toString());
+    formData.append('recordType', selectedReport.recordType);
+    formData.append('status', statusUpdate.status);
+    formData.append('direction', statusUpdate.direction);
+    formData.append('forwarded_to', statusUpdate.forwardedTo);
+    formData.append('cof', statusUpdate.cof);
+    formData.append('remarks', statusUpdate.remarks);
+    formData.append('updatedBy', statusUpdate.updatedBy);
+    
+    // Append the file if it exists
     if (statusUpdate.attachment) {
-      formData = new FormData();
-      Object.keys(updateData).forEach(key => {
-        if (key === 'attachment') {
-          formData.append('attachment', updateData[key]);
-        } else {
-          formData.append(key, updateData[key]);
-        }
-      });
+      formData.append('attachment', statusUpdate.attachment);
+      console.log('📎 Attaching file:', statusUpdate.attachment.name);
     }
 
-    // Make the API call
-    const response = await statusService.updateStatus(formData || updateData);
+    // Log FormData contents for debugging
+    console.log('📤 Sending FormData with status update');
+    for (let [key, value] of formData.entries()) {
+      console.log(`  ${key}:`, value);
+    }
+
+    // Use the statusService to update status
+    const response = await statusService.updateStatus(formData);
     console.log('✅ Update response:', response.data);
 
-    // Update local state
-    setSelectedReport(prev => ({
-      ...prev,
-      current_status: statusUpdate.status,
-      current_direction: statusUpdate.direction,
-      current_forwarded_to: statusUpdate.forwardedTo,
-      current_cof: statusUpdate.cof,
-      current_status_remarks: statusUpdate.remarks,
-      status_updated_at: new Date().toISOString(),
-      status_updated_by: statusUpdate.updatedBy
-    }));
+    // Update local state with the returned record data
+    if (response.data.data && response.data.data.record) {
+      const updatedRecord = response.data.data.record;
+      
+      setSelectedReport(prev => ({
+        ...prev,
+        current_status: updatedRecord.current_status,
+        current_direction: updatedRecord.current_direction,
+        current_forwarded_to: updatedRecord.current_forwarded_to,
+        current_cof: updatedRecord.current_cof,
+        current_status_remarks: updatedRecord.current_status_remarks,
+        status_updated_at: updatedRecord.status_updated_at,
+        status_updated_by: updatedRecord.status_updated_by,
+        // Update attachment information
+        attachment_count: updatedRecord.attachment_count,
+        attachment_names: updatedRecord.attachment_names,
+        attachment_paths: updatedRecord.attachment_paths
+      }));
 
-    // DEBUG: Check what the API returns for status history
-    console.log('🔄 Loading fresh status history...');
-    const freshStatusHistory = await loadStatusHistory(selectedReport.id, selectedReport.recordType);
-    console.log('📊 Fresh status history from API:', freshStatusHistory);
-
-    // Check if the new entry is in the response
-    if (freshStatusHistory && freshStatusHistory.length > 0) {
-      const latestEntry = freshStatusHistory[0];
-      console.log('🔍 Latest status history entry:', latestEntry);
-      console.log('📝 Latest entry forwarded_to:', latestEntry.forwarded_to);
-      console.log('📝 Latest entry cof:', latestEntry.cof);
+      console.log('🔄 Updated selected report with new attachment data');
     }
 
+    // Reload status history after update
+    const freshStatusHistory = await loadStatusHistory(selectedReport.id, selectedReport.recordType);
+    
     let combinedStatusHistory = [...freshStatusHistory];
     
-    // For documents, add the remarks as the initial status history entry
+    // Re-add document remarks as first entry
     if (selectedReport.recordType === 'document' && selectedReport.remarks) {
       const initialRemarksEntry = {
         id: -1,
@@ -285,7 +282,7 @@ const handleUpdateStatusSubmit = async () => {
       combinedStatusHistory = [initialRemarksEntry, ...freshStatusHistory];
     }
     
-    // For emails, add the body as initial content if needed
+    // Re-add email body as first entry
     if (selectedReport.recordType === 'email' && selectedReport.body) {
       const initialEmailEntry = {
         id: -2,
@@ -304,11 +301,12 @@ const handleUpdateStatusSubmit = async () => {
     // Sort by date descending (newest first)
     combinedStatusHistory.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     
-    console.log('🎯 Final combined status history to display:', combinedStatusHistory);
     setStatusHistory(combinedStatusHistory);
     
+    // Reload reports to reflect changes in the main table
     await loadReports();
     
+    // Reset the form
     setStatusUpdate({
       status: '',
       direction: '',
@@ -325,7 +323,7 @@ const handleUpdateStatusSubmit = async () => {
   } catch (error) {
     console.error('❌ Error updating status:', error);
     console.error('❌ Error details:', error.response?.data);
-    alert('Failed to update status');
+    alert('Failed to update status. Please check the console for details.');
   } finally {
     setUpdatingStatus(false);
   }
@@ -709,17 +707,35 @@ const handleUpdateStatusSubmit = async () => {
       <div className="info-value">{selectedReport.remarks || selectedReport.body || 'N/A'}</div>
     </div>
     
-    {/* 4th Row: Files */}
-    <div className="info-item full-width">
-      <div className="info-label">Files</div>
-      <div className="info-value">
-        {selectedReport.attachment_count > 0 ? (
-          <div className="files-list">
-            {selectedReport.attachment_names && selectedReport.attachment_names.map((fileName, index) => {
-              const savedFileName = selectedReport.attachment_paths?.[index] || fileName;
-              return (
-                <div key={index} className="file-item">
+{/* 4th Row: Files */}
+<div className="info-item full-width">
+  <div className="info-label">Files</div>
+  <div className="info-value">
+    {selectedReport.attachment_count > 0 ? (
+      <div className="files-list">
+        {/* Group files by age */}
+        {(() => {
+          const now = new Date();
+          const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          
+          const newFiles = [];
+          const recentFiles = [];
+          
+          selectedReport.attachment_names?.forEach((fileName, index) => {
+            const savedFileName = selectedReport.attachment_paths?.[index] || fileName;
+            // For demo, we'll consider the last file as new and others as recent
+            // In a real app, you might want to check file creation dates
+            const isNew = index === selectedReport.attachment_names.length - 1;
+            
+            const fileItem = (
+              <div key={index} className={`file-item ${isNew ? 'new-file' : 'recent-file'}`}>
+                <div className="file-header">
                   <span className="file-name">{fileName}</span>
+                  <span className="file-label">
+                    {isNew ? 'NEW' : 'RECENT'}
+                  </span>
+                </div>
+                <div className="file-actions">
                   <button 
                     className="download-btn small"
                     onClick={() => downloadAttachment(savedFileName, fileName)}
@@ -727,14 +743,42 @@ const handleUpdateStatusSubmit = async () => {
                     Download
                   </button>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <span className="no-files">No files attached</span>
-        )}
+              </div>
+            );
+            
+            if (isNew) {
+              newFiles.push(fileItem);
+            } else {
+              recentFiles.push(fileItem);
+            }
+          });
+          
+          return (
+            <>
+              {/* New Files Group */}
+              {newFiles.length > 0 && (
+                <div className="file-group">
+                  <div className="file-group-label">New Files</div>
+                  {newFiles}
+                </div>
+              )}
+              
+              {/* Recent Files Group */}
+              {recentFiles.length > 0 && (
+                <div className="file-group">
+                  <div className="file-group-label">Recent Files</div>
+                  {recentFiles}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
-    </div>
+    ) : (
+      <span className="no-files">No files attached</span>
+    )}
+  </div>
+</div>
   </div>
 </div>
 
@@ -806,12 +850,18 @@ const handleUpdateStatusSubmit = async () => {
                   <div className="detail-item full-width">
                     <div className="detail-label">Attachment</div>
                     <div className="detail-value">
-                      <button 
-                        className="download-attachment-btn"
-                        onClick={() => downloadStatusAttachment(history.attachment_filename)}
-                      >
+                      <div className="attachment-with-badge">
+                        <button 
+                          className="download-attachment-btn"
+                          onClick={() => downloadStatusAttachment(history.attachment_filename)}
+                        >
                         {history.attachment_filename}
-                      </button>
+                        </button>
+                        {/* Show NEW badge only on the most recent status history item with attachment */}
+                        {index === 0 && statusHistory[0].attachment_filename === history.attachment_filename && (
+                          <span className="new-attachment-badge">NEW</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

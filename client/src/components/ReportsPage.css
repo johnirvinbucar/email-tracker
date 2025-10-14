@@ -1214,3 +1214,144 @@
 .download-btn.small:hover {
   background: #0056b3;
 }
+/* File Item Styles with New/Recent Labels */
+.file-item {
+  display: flex;
+  justify-content: between;
+  align-items: center;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.file-item.new-file {
+  background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+  border-left: 4px solid #2196f3;
+}
+
+.file-item.recent-file {
+  background-color: #f8f9fa;
+  border-left: 4px solid #6c757d;
+}
+
+.file-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.file-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.file-label {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.file-item.new-file .file-label {
+  background: #2196f3;
+  color: white;
+}
+
+.file-item.recent-file .file-label {
+  background: #6c757d;
+  color: white;
+}
+
+.file-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Status History New Attachment Badge */
+.attachment-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.new-attachment-badge {
+  background: linear-gradient(135deg, #ff6b6b, #ff4757);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Download button styles */
+.download-btn.small {
+  padding: 6px 12px;
+  font-size: 12px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.download-btn.small:hover {
+  background: #0056b3;
+}
+
+.download-attachment-btn {
+  padding: 6px 12px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.download-attachment-btn:hover {
+  background: #218838;
+}
+
+/* File Group Styles */
+.file-group {
+  margin-bottom: 16px;
+}
+
+.file-group-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.file-icon {
+  font-size: 14px;
+}

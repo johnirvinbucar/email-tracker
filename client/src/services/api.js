@@ -16,7 +16,6 @@ export const emailService = {
   getStats: () => api.get('/email/stats')
 };
 
-// NEW: Document service
 export const documentService = {
   logDocument: (documentData) => api.post('/documents/log', documentData),
   getLogs: (page = 1, limit = 10) => 
@@ -24,9 +23,20 @@ export const documentService = {
   getStats: () => api.get('/documents/stats')
 };
 
-// Add to your existing api.js
+// UPDATED: statusService to handle both JSON and FormData
 export const statusService = {
-  updateStatus: (statusData) => api.put('/status/update', statusData),
+  updateStatus: (statusData) => {
+    // Check if it's FormData (has get method) or regular object
+    if (statusData instanceof FormData) {
+      return axios.put(`${API_BASE_URL}/status/update`, statusData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+    } else {
+      return api.put('/status/update', statusData);
+    }
+  },
   getStatusHistory: (recordId, recordType) => 
     api.get(`/status/history?recordId=${recordId}&recordType=${recordType}`),
   getStatusStats: (recordType = null) => 

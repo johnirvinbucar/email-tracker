@@ -2,6 +2,7 @@ const StatusHistory = require('../models/StatusHistory');
 const EmailLog = require('../models/EmailLog');
 const DocumentLog = require('../models/DocumentLog');
 
+
 const updateStatus = async (req, res) => {
   try {
     const { 
@@ -25,6 +26,18 @@ const updateStatus = async (req, res) => {
       updatedBy 
     });
 
+    // Handle file attachment if present
+    let attachmentData = null;
+    if (req.file) {
+      attachmentData = {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        path: req.file.path,
+        size: req.file.size
+      };
+      console.log('📎 Attachment received:', attachmentData);
+    }
+
     // Validate required fields
     if (!recordId || !recordType || !status || !updatedBy) {
       return res.status(400).json({
@@ -35,24 +48,26 @@ const updateStatus = async (req, res) => {
 
     let updatedRecord;
     
-    // Update the main record with the new forwarded_to and cof
+    // Update the main record with attachment data
     if (recordType === 'email') {
       updatedRecord = await EmailLog.updateStatus(recordId, {
         status,
         direction,
         remarks,
-        forwarded_to: forwarded_to || '',
-        cof: cof || '', 
-        updated_by: updatedBy
+        forwarded_to,
+        cof, 
+        updated_by: updatedBy,
+        attachment: attachmentData // Pass attachment data to update main record
       });
     } else if (recordType === 'document') {
       updatedRecord = await DocumentLog.updateStatus(recordId, {
         status,
         direction,
         remarks,
-        forwarded_to: forwarded_to || '',
-        cof: cof || '',
-        updated_by: updatedBy
+        forwarded_to,
+        cof,
+        updated_by: updatedBy,
+        attachment: attachmentData // Pass attachment data to update main record
       });
     } else {
       return res.status(400).json({
@@ -68,16 +83,17 @@ const updateStatus = async (req, res) => {
       });
     }
 
-    // Create status history entry
+    // Create status history entry with attachment reference
     const statusHistory = await StatusHistory.create({
       record_id: recordId,
       record_type: recordType,
       status,
       direction,
       remarks,
-      forwarded_to: forwarded_to || '',
-      cof: cof || '',
-      created_by: updatedBy
+      forwarded_to,
+      cof,
+      created_by: updatedBy,
+      attachment_filename: attachmentData ? attachmentData.filename : null
     });
 
     console.log('✅ Status updated successfully. Main record:', updatedRecord);

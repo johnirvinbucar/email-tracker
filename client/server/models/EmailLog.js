@@ -99,34 +99,68 @@ static async updateStatus(emailId, statusData) {
       forwarded_to,
       cof,
       remarks,
-      updated_by
+      updated_by,
+      attachment
     } = statusData;
 
-    const query = `
-      UPDATE email_logs 
-      SET 
-        current_status = $1,
-        current_direction = $2,
-        current_forwarded_to = $3,
-        current_cof = $4,
-        current_status_remarks = $5,
-        status_updated_at = NOW(),
-        status_updated_by = $6
-      WHERE id = $7
-      RETURNING *
-    `;
+    let query;
+    let values;
 
-    const values = [
-      status,
-      direction,
-      forwarded_to || '',
-      cof || '',
-      remarks,
-      updated_by,
-      emailId
-    ];
+    // If there's an attachment, update the attachment fields
+    if (attachment) {
+      query = `
+        UPDATE email_logs 
+        SET 
+          current_status = $1,
+          current_direction = $2,
+          current_forwarded_to = $3,
+          current_cof = $4,
+          current_status_remarks = $5,
+          status_updated_at = NOW(),
+          status_updated_by = $6,
+          attachment_count = COALESCE(attachment_count, 0) + 1,
+          attachment_names = array_append(COALESCE(attachment_names, ARRAY[]::text[]), $7),
+          attachment_paths = array_append(COALESCE(attachment_paths, ARRAY[]::text[]), $8)
+        WHERE id = $9
+        RETURNING *
+      `;
+      values = [
+        status,
+        direction,
+        forwarded_to || '',
+        cof || '',
+        remarks,
+        updated_by,
+        attachment.originalName,
+        attachment.filename,
+        emailId
+      ];
+    } else {
+      query = `
+        UPDATE email_logs 
+        SET 
+          current_status = $1,
+          current_direction = $2,
+          current_forwarded_to = $3,
+          current_cof = $4,
+          current_status_remarks = $5,
+          status_updated_at = NOW(),
+          status_updated_by = $6
+        WHERE id = $7
+        RETURNING *
+      `;
+      values = [
+        status,
+        direction,
+        forwarded_to || '',
+        cof || '',
+        remarks,
+        updated_by,
+        emailId
+      ];
+    }
 
-    console.log('📝 Updating email_logs with values:', values);
+    console.log('📝 Executing email update query with values:', values);
 
     const result = await pool.query(query, values);
     return result.rows[0];
