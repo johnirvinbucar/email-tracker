@@ -719,7 +719,6 @@ const handleUpdateStatusSubmit = async () => {
               const savedFileName = selectedReport.attachment_paths?.[index] || fileName;
               return (
                 <div key={index} className="file-item">
-                  <span className="file-icon">📎</span>
                   <span className="file-name">{fileName}</span>
                   <button 
                     className="download-btn small"
@@ -756,7 +755,7 @@ const handleUpdateStatusSubmit = async () => {
       {statusHistory.map((history, index) => {
 
         // console.log(`📋 Rendering history item ${index}:`, history); //Debug log
-        
+
         return (
           <div key={history.id || index} className="timeline-item">
             <div className="timeline-header">
@@ -811,7 +810,7 @@ const handleUpdateStatusSubmit = async () => {
                         className="download-attachment-btn"
                         onClick={() => downloadStatusAttachment(history.attachment_filename)}
                       >
-                        📎 {history.attachment_filename}
+                        {history.attachment_filename}
                       </button>
                     </div>
                   </div>
