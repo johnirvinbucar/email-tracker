@@ -39,7 +39,7 @@ const ReportsPage = () => {
     cof: '',
     remarks: '',
     updatedBy: '',
-    attachment: null
+    attachments: [] 
   });
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
@@ -107,95 +107,106 @@ const loadReports = async () => {
     }
   };
 
-  const handleViewDetails = async (report) => {
-    setSelectedReport(report);
-    setShowDetailsModal(true);
-    
-    // Load status history from API
-    const apiStatusHistory = await loadStatusHistory(report.id, report.recordType);
-    
-    // Create combined status history with document remarks as first entry
-    let combinedStatusHistory = [...apiStatusHistory];
-    
-    // For documents, add the remarks as the initial status history entry
-    if (report.recordType === 'document' && report.remarks) {
-      const initialRemarksEntry = {
-        id: -1, // Special ID for initial remarks
-        status: 'Created',
-        direction: report.direction || '',
-        forwardedTo: report.forwarded_to || '',
-        cof: report.cof || '',
-        remarks: report.remarks,
-        created_at: report.timestamp,
-        created_by: report.sender_name || 'System',
-        is_initial_remarks: true
-      };
-      combinedStatusHistory = [initialRemarksEntry, ...apiStatusHistory];
-    }
-    
-    // For emails, add the body as initial content if needed
-    if (report.recordType === 'email' && report.body) {
-      const initialEmailEntry = {
-        id: -2, // Special ID for email body
-        status: 'Sent',
-        direction: 'OUT',
-        forwardedTo: report.forwarded_to || '',
-        cof: report.cof || '',
-        remarks: report.body,
-        created_at: report.timestamp,
-        created_by: report.sender_name || 'System',
-        is_initial_content: true
-      };
-      combinedStatusHistory = [initialEmailEntry, ...apiStatusHistory];
-    }
-    
-    // Sort by date descending (newest first)
-    combinedStatusHistory.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    
-    setStatusHistory(combinedStatusHistory);
-    
-    // Get saved user name from localStorage if available
-    const savedUser = localStorage.getItem('statusUpdateUser') || '';
-    
-    setStatusUpdate({
-      status: report.current_status || 'Pending',
-      direction: report.current_direction || report.direction || '',
-      forwardedTo: report.current_forwarded_to || '',
-      cof: report.current_cof || '',
-      remarks: report.current_status_remarks || '',
-      updatedBy: savedUser,
-      attachment: null
-    });
-  };
+const handleViewDetails = async (report) => {
+  setSelectedReport(report);
+  setShowDetailsModal(true);
+  
+  // Load status history from API
+  const apiStatusHistory = await loadStatusHistory(report.id, report.recordType);
+  
+  // Create combined status history with document remarks as first entry
+  let combinedStatusHistory = [...apiStatusHistory];
+  
+  // For documents, add the remarks as the initial status history entry
+  if (report.recordType === 'document' && report.remarks) {
+    const initialRemarksEntry = {
+      id: -1, 
+      status: 'Created',
+      direction: report.direction || '',
+      forwarded_to: report.forwarded_to || report.current_forwarded_to || '', 
+      cof: report.cof || report.current_cof || '', 
+      remarks: report.remarks,
+      created_at: report.timestamp,
+      created_by: report.sender_name || 'System',
+      is_initial_remarks: true
+    };
+    combinedStatusHistory = [initialRemarksEntry, ...apiStatusHistory];
+  }
+  
+  // For emails, add the body as initial content if needed
+  if (report.recordType === 'email' && report.body) {
+    const initialEmailEntry = {
+      id: -2, // Special ID for email body
+      status: 'Sent',
+      direction: 'OUT',
+      forwarded_to: report.forwarded_to || report.current_forwarded_to || '', 
+      cof: report.cof || report.current_cof || '', 
+      remarks: report.body,
+      created_at: report.timestamp,
+      created_by: report.sender_name || 'System',
+      is_initial_content: true
+    };
+    combinedStatusHistory = [initialEmailEntry, ...apiStatusHistory];
+  }
+  
+  // Sort by date descending (newest first)
+  combinedStatusHistory.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  
+  setStatusHistory(combinedStatusHistory);
+  
+  // Get saved user name from localStorage if available
+  const savedUser = localStorage.getItem('statusUpdateUser') || '';
+  
+  setStatusUpdate({
+    status: report.current_status || 'Pending',
+    direction: report.current_direction || report.direction || '',
+    forwardedTo: report.current_forwarded_to || '',
+    cof: report.current_cof || '',
+    remarks: report.current_status_remarks || '',
+    updatedBy: savedUser,
+    attachments: [] // Use 'attachments' (plural)
+  });
+};
 
-  const handleOpenUpdateStatus = () => {
-    setShowUpdateStatusModal(true);
-    // Clear the form when opening
-    const savedUser = localStorage.getItem('statusUpdateUser') || '';
-    setStatusUpdate({
-      status: '',
-      direction: '',
-      forwardedTo: '',
-      cof: '',
-      remarks: '',
-      updatedBy: savedUser,
-      attachment: null
-    });
-  };
+const handleOpenUpdateStatus = () => {
+  setShowUpdateStatusModal(true);
+  // Clear the form when opening
+  const savedUser = localStorage.getItem('statusUpdateUser') || '';
+  setStatusUpdate({
+    status: '',
+    direction: '',
+    forwardedTo: '',
+    cof: '',
+    remarks: '',
+    updatedBy: savedUser,
+    attachments: [] // Use 'attachments' (plural)
+  });
+};
 
   const handleCloseUpdateStatus = () => {
     setShowUpdateStatusModal(false);
   };
 
-  const handleAttachmentChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setStatusUpdate(prev => ({
-        ...prev,
-        attachment: file
-      }));
-    }
-  };
+const handleAttachmentChange = (e) => {
+  const files = Array.from(e.target.files);
+  if (files.length > 0) {
+    setStatusUpdate(prev => ({
+      ...prev,
+      attachments: files // Store as array
+    }));
+  }
+  // Clear the input to allow selecting the same file again
+  e.target.value = '';
+};
+
+// Function to remove a file from the attachments
+const handleRemoveAttachment = (indexToRemove) => {
+  setStatusUpdate(prev => ({
+    ...prev,
+    attachments: prev.attachments.filter((_, index) => index !== indexToRemove)
+  }));
+};
+
 const handleUpdateStatusSubmit = async () => {
   if (!statusUpdate.status) {
     alert('Please select a status');
@@ -223,10 +234,12 @@ const handleUpdateStatusSubmit = async () => {
     formData.append('remarks', statusUpdate.remarks);
     formData.append('updatedBy', statusUpdate.updatedBy);
     
-    // Append the file if it exists
-    if (statusUpdate.attachment) {
-      formData.append('attachment', statusUpdate.attachment);
-      console.log('📎 Attaching file:', statusUpdate.attachment.name);
+    // FIX: Check if attachments exists and has length
+    if (statusUpdate.attachments && statusUpdate.attachments.length > 0) {
+      statusUpdate.attachments.forEach((file, index) => {
+        formData.append('attachment', file); // Note: using 'attachment' (singular) for backend
+        console.log('📎 Attaching file:', file.name);
+      });
     }
 
     // Log FormData contents for debugging
@@ -255,10 +268,13 @@ const handleUpdateStatusSubmit = async () => {
         // Update attachment information
         attachment_count: updatedRecord.attachment_count,
         attachment_names: updatedRecord.attachment_names,
-        attachment_paths: updatedRecord.attachment_paths
+        attachment_paths: updatedRecord.attachment_paths,
+        // Update file version data for automatic refresh
+        file_versions: updatedRecord.file_versions,
+        current_file_version: updatedRecord.current_file_version
       }));
 
-      console.log('🔄 Updated selected report with new attachment data');
+      console.log('🔄 Updated selected report with new file version data');
     }
 
     // Reload status history after update
@@ -272,8 +288,8 @@ const handleUpdateStatusSubmit = async () => {
         id: -1,
         status: 'Created',
         direction: selectedReport.direction || '',
-        forwarded_to: selectedReport.forwarded_to || '',
-        cof: selectedReport.cof || '',
+        forwarded_to: selectedReport.forwarded_to || selectedReport.current_forwarded_to || '',
+        cof: selectedReport.cof || selectedReport.current_cof || '',
         remarks: selectedReport.remarks,
         created_at: selectedReport.timestamp,
         created_by: selectedReport.sender_name || 'System',
@@ -288,8 +304,8 @@ const handleUpdateStatusSubmit = async () => {
         id: -2,
         status: 'Sent',
         direction: 'OUT',
-        forwarded_to: selectedReport.forwarded_to || '',
-        cof: selectedReport.cof || '',
+        forwarded_to: selectedReport.forwarded_to || selectedReport.current_forwarded_to || '',
+        cof: selectedReport.cof || selectedReport.current_cof || '',
         remarks: selectedReport.body,
         created_at: selectedReport.timestamp,
         created_by: selectedReport.sender_name || 'System',
@@ -303,9 +319,6 @@ const handleUpdateStatusSubmit = async () => {
     
     setStatusHistory(combinedStatusHistory);
     
-    // Reload reports to reflect changes in the main table
-    await loadReports();
-    
     // Reset the form
     setStatusUpdate({
       status: '',
@@ -314,7 +327,7 @@ const handleUpdateStatusSubmit = async () => {
       cof: '',
       remarks: '',
       updatedBy: statusUpdate.updatedBy,
-      attachment: null
+      attachments: [] // Reset to empty array
     });
 
     setShowUpdateStatusModal(false);
@@ -703,49 +716,52 @@ const handleUpdateStatusSubmit = async () => {
   <div className="info-value">
     {selectedReport.attachment_count > 0 ? (
       <div className="files-list">
-        {/* Group files by age */}
         {(() => {
-          const now = new Date();
-          const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          // Use the file_versions data to properly group files
+          const fileVersions = selectedReport.file_versions || [];
+          const currentVersion = selectedReport.current_file_version || 0;
+          
+          // console.log('📁 Current file versions:', fileVersions);
+          // console.log('🆕 Current version number:', currentVersion);
           
           const newFiles = [];
           const recentFiles = [];
           
-          selectedReport.attachment_names?.forEach((fileName, index) => {
-            const savedFileName = selectedReport.attachment_paths?.[index] || fileName;
-            // For demo, we'll consider the last file as new and others as recent
-            // In a real app, you might want to check file creation dates
-            const isNew = index === selectedReport.attachment_names.length - 1;
+          fileVersions.forEach(version => {
+            const isNew = version.version === currentVersion;
             
-            const fileItem = (
-              <div key={index} className={`file-item ${isNew ? 'new-file' : 'recent-file'}`}>
-                <div className="file-header">
-                  <span className="file-name">{fileName}</span>
-                  <span className="file-label">
-                    {isNew ? 'NEW' : 'RECENT'}
-                  </span>
+            version.files?.forEach(file => {
+              const fileItem = (
+                <div key={`${version.version}-${file.filename}`} 
+                     className={`file-item ${isNew ? 'new-file' : 'recent-file'}`}>
+                  <div className="file-header">
+                    <span className="file-name">{file.originalName}</span>
+                    <span className="file-label">
+                      {isNew ? 'NEW' : `v${version.version}`}
+                    </span>
+                  </div>
+                  <div className="file-actions">
+                    <button 
+                      className="download-btn small"
+                      onClick={() => downloadAttachment(file.filename, file.originalName)}
+                    >
+                      Download
+                    </button>
+                  </div>
                 </div>
-                <div className="file-actions">
-                  <button 
-                    className="download-btn small"
-                    onClick={() => downloadAttachment(savedFileName, fileName)}
-                  >
-                    Download
-                  </button>
-                </div>
-              </div>
-            );
-            
-            if (isNew) {
-              newFiles.push(fileItem);
-            } else {
-              recentFiles.push(fileItem);
-            }
+              );
+              
+              if (isNew) {
+                newFiles.push(fileItem);
+              } else {
+                recentFiles.push(fileItem);
+              }
+            });
           });
           
           return (
             <>
-              {/* New Files Group */}
+              {/* New Files Group - from the current version */}
               {newFiles.length > 0 && (
                 <div className="file-group">
                   <div className="file-group-label">New Files</div>
@@ -753,10 +769,10 @@ const handleUpdateStatusSubmit = async () => {
                 </div>
               )}
               
-              {/* Recent Files Group */}
+              {/* Recent Files Group - from previous versions */}
               {recentFiles.length > 0 && (
                 <div className="file-group">
-                  <div className="file-group-label">Recent Files</div>
+                  <div className="file-group-label">Previous Versions</div>
                   {recentFiles}
                 </div>
               )}
@@ -787,8 +803,8 @@ const handleUpdateStatusSubmit = async () => {
   {statusHistory.length > 0 ? (
     <div className="timeline">
       {statusHistory.map((history, index) => {
-
-        // console.log(`📋 Rendering history item ${index}:`, history); //Debug log
+        // Debug log to see what data we're getting
+        // console.log('📋 Status History Item:', history);
 
         return (
           <div key={history.id || index} className="timeline-item">
@@ -799,18 +815,18 @@ const handleUpdateStatusSubmit = async () => {
               </div>
             </div>
             <div className="timeline-details-grid">
-              {/* 1st Row: Forwarded to and C/O */}
+              {/* 1st Row: Forwarded to and C/O - FIXED FIELD NAMES */}
               <div className="detail-row">
                 <div className="detail-item">
                   <div className="detail-label">Forwarded to</div>
                   <div className="detail-value">
-                    {history.forwarded_to || 'Not specified'}
+                    {history.forwarded_to || history.forwardedTo || selectedReport?.current_forwarded_to || 'Not specified'}
                   </div>
                 </div>
                 <div className="detail-item">
-                  <div className="detail-label">C/O</div>
+                  <div className="detail-label">C/Of</div>
                   <div className="detail-value">
-                    {history.cof || 'Not specified'}
+                    {history.cof || selectedReport?.current_cof || 'Not specified'}
                   </div>
                 </div>
               </div>
@@ -834,7 +850,7 @@ const handleUpdateStatusSubmit = async () => {
                 </div>
               </div>
               
-              {/* Attachment row - UPDATED: Show only filename with NEW label, no download icon */}
+              {/* Attachment row */}
               {history.attachment_filename && (
                 <div className="detail-row">
                   <div className="detail-item full-width">
@@ -869,127 +885,148 @@ const handleUpdateStatusSubmit = async () => {
         </div>
       )}
 
-      {/* Update Status Modal - With New Fields */}
-      {showUpdateStatusModal && selectedReport && (
-        <div className="modal-overlay">
-          <div className="update-status-modal">
-            <div className="modal-header">
-              <div className="modal-title">
-                <h3>Update Status</h3>
-                <span className="tracking-number-modal">{selectedReport.tracking_number}</span>
-              </div>
-              <button 
-                className="close-modal"
-                onClick={handleCloseUpdateStatus}
+{/* Update Status Modal - With New Fields */}
+{showUpdateStatusModal && selectedReport && (
+  <div className="modal-overlay">
+    <div className="update-status-modal">
+      <div className="modal-header">
+        <div className="modal-title">
+          <h3>Update Status</h3>
+          <span className="tracking-number-modal">{selectedReport.tracking_number}</span>
+        </div>
+        <button 
+          className="close-modal"
+          onClick={handleCloseUpdateStatus}
+        >
+          ✕
+        </button>
+      </div>
+      
+      <div className="modal-content">
+        <div className="status-form">
+          {/* User Name Input */}
+          <div className="form-group full-width required">
+            <label className="bold-label">Update by</label>
+            <input 
+              type="text"
+              value={statusUpdate.updatedBy}
+              onChange={(e) => setStatusUpdate({...statusUpdate, updatedBy: e.target.value})}
+              placeholder="Enter your name"
+              className="user-input"
+              required
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group required">
+              <label className="bold-label">Status</label>
+              <select 
+                value={statusUpdate.status}
+                onChange={(e) => setStatusUpdate({...statusUpdate, status: e.target.value})}
+                required
               >
-                ✕
-              </button>
+                <option value="">Select Status</option>
+                <option value="Pending">Pending</option>
+                <option value="For Compliance">For Compliance</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
             </div>
             
-            <div className="modal-content">
-              <div className="status-form">
-                {/* User Name Input */}
-                <div className="form-group full-width required">
-                  <label className="bold-label">Update by</label>
-                  <input 
-                    type="text"
-                    value={statusUpdate.updatedBy}
-                    onChange={(e) => setStatusUpdate({...statusUpdate, updatedBy: e.target.value})}
-                    placeholder="Enter your name"
-                    className="user-input"
-                    required
-                  />
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group required">
-                    <label className="bold-label">Status</label>
-                    <select 
-                      value={statusUpdate.status}
-                      onChange={(e) => setStatusUpdate({...statusUpdate, status: e.target.value})}
-                      required
-                    >
-                      <option value="">Select Status</option>
-                      <option value="Pending">Pending</option>
-                      <option value="For Compliance">For Compliance</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label className="bold-label">Direction</label>
-                    <select 
-                      value={statusUpdate.direction}
-                      onChange={(e) => setStatusUpdate({...statusUpdate, direction: e.target.value})}
-                    >
-                      <option value="">Select Direction</option>
-                      <option value="IN">IN</option>
-                      <option value="OUT">OUT</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* New Fields: Forwarded to and C/O */}
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="bold-label">Forwarded to</label>
-                    <input 
-                      type="text"
-                      value={statusUpdate.forwardedTo}
-                      onChange={(e) => setStatusUpdate({...statusUpdate, forwardedTo: e.target.value})}
-                      placeholder="Enter forwarded to"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="bold-label">C/O</label>
-                    <input 
-                      type="text"
-                      value={statusUpdate.cof}
-                      onChange={(e) => setStatusUpdate({...statusUpdate, cof: e.target.value})}
-                      placeholder="Enter c/o"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group full-width">
-                  <label className="bold-label">Remarks</label>
-                  <textarea 
-                    value={statusUpdate.remarks}
-                    onChange={(e) => setStatusUpdate({...statusUpdate, remarks: e.target.value})}
-                    placeholder="Enter status remarks..."
-                    rows="3"
-                  />
-                </div>
-
-                {/* Updated Attachment Field - Now accepts all office documents */}
-                <div className="form-group full-width">
-                  <label className="bold-label">Attachment</label>
-                  <input 
-                    type="file"
-                    onChange={handleAttachmentChange}
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.zip,.rar"
-                    className="file-input"
-                  />
-                  <div className="file-input-note">
-                    Upload PDF, Word, Excel, PowerPoint, images, or other document files
-                  </div>
-                </div>
-
-                <div className="form-actions">
-                  <button 
-                    className="update-btn primary-btn"
-                    onClick={handleUpdateStatusSubmit}
-                    disabled={updatingStatus || !statusUpdate.status || !statusUpdate.updatedBy.trim()}
-                  >
-                    {updatingStatus ? 'Updating...' : 'Update Status'}
-                  </button>
-                </div>
-              </div>
+            <div className="form-group">
+              <label className="bold-label">Direction</label>
+              <select 
+                value={statusUpdate.direction}
+                onChange={(e) => setStatusUpdate({...statusUpdate, direction: e.target.value})}
+              >
+                <option value="">Select Direction</option>
+                <option value="IN">IN</option>
+                <option value="OUT">OUT</option>
+              </select>
             </div>
           </div>
+
+          {/* New Fields: Forwarded to and C/O */}
+          <div className="form-row">
+            <div className="form-group">
+              <label className="bold-label">Forwarded to</label>
+              <input 
+                type="text"
+                value={statusUpdate.forwardedTo}
+                onChange={(e) => setStatusUpdate({...statusUpdate, forwardedTo: e.target.value})}
+                placeholder="Enter forwarded to"
+              />
+            </div>
+            <div className="form-group">
+              <label className="bold-label">C/OF</label>
+              <input 
+                type="text"
+                value={statusUpdate.cof}
+                onChange={(e) => setStatusUpdate({...statusUpdate, cof: e.target.value})}
+                placeholder="Enter c/of"
+              />
+            </div>
+          </div>
+
+          <div className="form-group full-width">
+            <label className="bold-label">Remarks</label>
+            <textarea 
+              value={statusUpdate.remarks}
+              onChange={(e) => setStatusUpdate({...statusUpdate, remarks: e.target.value})}
+              placeholder="Enter status remarks..."
+              rows="3"
+            />
+          </div>
+
+          {/* Updated Attachment Field - Now accepts all office documents */}
+          <div className="form-group full-width">
+            <label className="bold-label">Attachment</label>
+            <input 
+              type="file"
+              onChange={handleAttachmentChange}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.zip,.rar"
+              className="file-input"
+              multiple
+            />
+            <div className="file-input-note">
+              Upload PDF, Word, Excel, PowerPoint, images, or other document files
+            </div>
+            
+            {/* Display selected files with remove buttons */}
+            {statusUpdate.attachments && statusUpdate.attachments.length > 0 && (
+              <div className="attachments-list">
+                <div className="attachments-label">Selected files:</div>
+                {statusUpdate.attachments.map((file, index) => (
+                  <div key={index} className="attachment-item">
+                    <span className="attachment-name">{file.name}</span>
+                    <button 
+                      type="button"
+                      className="remove-attachment-btn"
+                      onClick={() => handleRemoveAttachment(index)}
+                      title="Remove file"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="form-actions">
+            <button 
+              className="update-btn primary-btn"
+              onClick={handleUpdateStatusSubmit}
+              disabled={updatingStatus || !statusUpdate.status || !statusUpdate.updatedBy.trim()}
+            >
+              {updatingStatus ? 'Updating...' : 'Update Status'}
+            </button>
+          </div>
         </div>
-      )}
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

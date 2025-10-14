@@ -2,56 +2,77 @@ const pool = require('../config/database');
 const TrackingGenerator = require('../utils/trackingGenerator');
 
 class DocumentLog {
-  static async create(logData) {
-    try {
-      // Generate tracking number
-      const trackingNumber = await TrackingGenerator.generateTrackingNumber();
-      
-      const {
-        sender_name,
-        doc_type,
-        document_subject,
-        direction,
-        remarks,
-        forwarded_to, 
-        cof,
-        attachment_count = 0,
-        attachment_names = [],
-        attachment_paths = [],
-        ip_address,
-        user_agent
-      } = logData;
+static async create(logData) {
+  try {
+    // Generate tracking number
+    const trackingNumber = await TrackingGenerator.generateTrackingNumber();
+    
+    const {
+      sender_name,
+      doc_type,
+      document_subject,
+      direction,
+      remarks,
+      forwarded_to, 
+      cof,
+      attachment_count = 0,
+      attachment_names = [],
+      attachment_paths = [],
+      ip_address,
+      user_agent
+    } = logData;
 
-      const query = `
-        INSERT INTO document_logs 
-        (tracking_number, sender_name, doc_type, document_subject, direction, remarks, forwarded_to, cof, attachment_count, attachment_names, attachment_paths, ip_address, user_agent)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        RETURNING *
-      `;
+    // Create initial file version if there are attachments
+    let fileVersions = [];
+    let currentFileVersion = 0;
 
-      const values = [
-        trackingNumber,
-        sender_name,
-        doc_type,
-        document_subject,
-        direction,
-        remarks,
-        forwarded_to || '', 
-        cof || '', 
-        attachment_count,
-        attachment_names,
-        attachment_paths,
-        ip_address,
-        user_agent
-      ];
-
-      const result = await pool.query(query, values);
-      return result.rows[0];
-    } catch (error) {
-      console.error('Error in DocumentLog.create:', error);
-      throw error;
+    if (attachment_count > 0) {
+      currentFileVersion = 1;
+      fileVersions = [{
+        version: 1,
+        timestamp: new Date().toISOString(),
+        files: attachment_names.map((name, index) => ({
+          originalName: name,
+          filename: attachment_paths[index],
+          uploadedBy: sender_name
+        }))
+      }];
     }
+
+    const query = `
+      INSERT INTO document_logs 
+      (tracking_number, sender_name, doc_type, document_subject, direction, remarks, forwarded_to, cof, 
+       attachment_count, attachment_names, attachment_paths, ip_address, user_agent,
+       file_versions, current_file_version)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      RETURNING *
+    `;
+
+    const values = [
+      trackingNumber,
+      sender_name,
+      doc_type,
+      document_subject,
+      direction,
+      remarks,
+      forwarded_to || '', 
+      cof || '', 
+      attachment_count,
+      attachment_names,
+      attachment_paths,
+      ip_address,
+      user_agent,
+      JSON.stringify(fileVersions),
+      currentFileVersion
+    ];
+
+    const result = await pool.query(query, values);
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error in DocumentLog.create:', error);
+    throw error;
   }
+}
 
   // Update findAll to include tracking_number
   static async findAll(page = 1, limit = 10) {
@@ -83,6 +104,25 @@ class DocumentLog {
     }
   }
 
+  static async getFilesByVersion(documentId) {
+  try {
+    const query = 'SELECT file_versions, current_file_version FROM document_logs WHERE id = $1';
+    const result = await pool.query(query, [documentId]);
+    
+    if (!result.rows[0]) return { currentVersion: 0, versions: [] };
+    
+    const { file_versions, current_file_version } = result.rows[0];
+    return {
+      currentVersion: current_file_version,
+      versions: file_versions || []
+    };
+  } catch (error) {
+    console.error('Error in DocumentLog.getFilesByVersion:', error);
+    throw error;
+  }
+}
+
+
   // Add method to find by tracking number
   static async findByTrackingNumber(trackingNumber) {
     try {
@@ -109,8 +149,29 @@ static async updateStatus(documentId, statusData) {
     let query;
     let values;
 
-    // If there's an attachment, update the attachment fields
+    // First, get the current document to check existing file versions
+    const currentDoc = await this.findById(documentId);
+    let fileVersions = currentDoc.file_versions || [];
+    let currentFileVersion = currentDoc.current_file_version || 1;
+
+    // If there's an attachment, create a new file version
     if (attachment) {
+      currentFileVersion += 1;
+      
+      // Create new file version entry
+      const newFileVersion = {
+        version: currentFileVersion,
+        timestamp: new Date().toISOString(),
+        files: [{
+          originalName: attachment.originalName,
+          filename: attachment.filename,
+          uploadedBy: updated_by
+        }]
+      };
+
+      // Add to file versions array
+      fileVersions.push(newFileVersion);
+
       query = `
         UPDATE document_logs 
         SET 
@@ -121,9 +182,13 @@ static async updateStatus(documentId, statusData) {
           current_status_remarks = $5,
           status_updated_at = NOW(),
           status_updated_by = $6,
-          attachment_count = COALESCE(attachment_count, 0) + 1,
-          attachment_names = array_append(COALESCE(attachment_names, ARRAY[]::text[]), $7),
-          attachment_paths = array_append(COALESCE(attachment_paths, ARRAY[]::text[]), $8)
+          file_versions = $7,
+          current_file_version = $8,
+          attachment_count = (
+            SELECT COUNT(*) 
+            FROM jsonb_array_elements($7) AS version,
+            jsonb_array_elements(version->'files') AS file
+          )
         WHERE id = $9
         RETURNING *
       `;
@@ -134,8 +199,8 @@ static async updateStatus(documentId, statusData) {
         cof || '',
         remarks,
         updated_by,
-        attachment.originalName,
-        attachment.filename,
+        JSON.stringify(fileVersions),
+        currentFileVersion,
         documentId
       ];
     } else {

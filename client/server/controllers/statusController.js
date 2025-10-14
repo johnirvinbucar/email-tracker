@@ -57,7 +57,7 @@ const updateStatus = async (req, res) => {
         forwarded_to,
         cof, 
         updated_by: updatedBy,
-        attachment: attachmentData // Pass attachment data to update main record
+        attachment: attachmentData
       });
     } else if (recordType === 'document') {
       updatedRecord = await DocumentLog.updateStatus(recordId, {
@@ -67,7 +67,7 @@ const updateStatus = async (req, res) => {
         forwarded_to,
         cof,
         updated_by: updatedBy,
-        attachment: attachmentData // Pass attachment data to update main record
+        attachment: attachmentData
       });
     } else {
       return res.status(400).json({
@@ -98,11 +98,12 @@ const updateStatus = async (req, res) => {
 
     console.log('✅ Status updated successfully. Main record:', updatedRecord);
 
+    // IMPORTANT: Return the complete updated record including file versions
     res.json({
       success: true,
       message: 'Status updated successfully',
       data: {
-        record: updatedRecord,
+        record: updatedRecord, // This should include file_versions and current_file_version
         history: statusHistory
       }
     });
