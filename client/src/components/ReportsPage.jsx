@@ -9,6 +9,8 @@ const getStatusBadgeClass = (status) => {
   const statusMap = {
     'pending': 'status-pending',
     'for compliance': 'status-for-compliance',
+    'for filling': 'status-for-filling',
+    'for action': 'status-for-action',
     'in progress': 'status-in-progress',
     'completed': 'status-completed',
     'cancelled': 'status-cancelled'
@@ -531,6 +533,8 @@ const handleUpdateStatusSubmit = async () => {
               <option value="all">All Status</option>
               <option value="Pending">Pending</option>
               <option value="For Compliance">For Compliance</option>
+              <option value="For Filling">For Filling</option>
+              <option value="For Action">For Action</option>
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </select>
@@ -959,6 +963,8 @@ const handleUpdateStatusSubmit = async () => {
                         <option value="">Select Status</option>
                         <option value="Pending">Pending</option>
                         <option value="For Compliance">For Compliance</option>
+                        <option value="For Filling">For Filling</option>
+                        <option value="For Action">For Action</option>
                         <option value="Completed">Completed</option>
                         <option value="Cancelled">Cancelled</option>
                       </select>

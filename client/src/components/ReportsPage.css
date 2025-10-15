@@ -485,10 +485,13 @@
   color: #856404;
 }
 
-.status-for-compliance {
+.status-for-compliance,
+.status-for-filling,
+.status-for-action {
   background-color: #17a2b8;  /* Teal color for compliance */
   color: #fff;
 }
+
 
 
 .status-completed {
