@@ -134,6 +134,7 @@ static async create(logData) {
       throw error;
     }
   }
+// In your DocumentLog model - update the updateStatus method
 static async updateStatus(documentId, statusData) {
   try {
     const {
@@ -143,7 +144,7 @@ static async updateStatus(documentId, statusData) {
       cof,
       remarks,
       updated_by,
-      attachment
+      attachments // Now an array of attachments
     } = statusData;
 
     let query;
@@ -154,19 +155,19 @@ static async updateStatus(documentId, statusData) {
     let fileVersions = currentDoc.file_versions || [];
     let currentFileVersion = currentDoc.current_file_version || 1;
 
-    // If there's an attachment, create a new file version
-    if (attachment) {
+    // If there are attachments, create a new file version
+    if (attachments && attachments.length > 0) {
       currentFileVersion += 1;
       
-      // Create new file version entry
+      // Create new file version entry with multiple files
       const newFileVersion = {
         version: currentFileVersion,
         timestamp: new Date().toISOString(),
-        files: [{
+        files: attachments.map(attachment => ({
           originalName: attachment.originalName,
           filename: attachment.filename,
           uploadedBy: updated_by
-        }]
+        }))
       };
 
       // Add to file versions array

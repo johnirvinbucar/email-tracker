@@ -32,7 +32,7 @@ const upload = multer({
 });
 
 // Use multer for the update route - single file with field name 'attachment'
-router.put('/update', upload.single('attachment'), updateStatus);
+router.put('/update', upload.array('attachments', 10), updateStatus);
 router.get('/history', getStatusHistory);
 router.get('/stats', getStatusStats);
 

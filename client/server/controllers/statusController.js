@@ -3,113 +3,106 @@ const EmailLog = require('../models/EmailLog');
 const DocumentLog = require('../models/DocumentLog');
 
 
+// In your statusController.js - update the updateStatus function
 const updateStatus = async (req, res) => {
   try {
-    const { 
-      recordId, 
-      recordType, 
-      status, 
-      direction, 
-      forwarded_to,  
-      cof,          
-      remarks, 
-      updatedBy 
+    const {
+      recordId,
+      recordType,
+      status,
+      direction,
+      forwarded_to,
+      cof,
+      remarks,
+      updatedBy
     } = req.body;
 
-    console.log('📝 Updating status with data:', { 
-      recordId, 
-      recordType, 
-      status, 
-      direction, 
-      forwarded_to, 
-      cof, 
-      updatedBy 
+    console.log('📥 Received status update request:', {
+      recordId,
+      recordType,
+      status,
+      direction,
+      forwarded_to,
+      cof,
+      remarks,
+      updatedBy
     });
 
-    // Handle file attachment if present
-    let attachmentData = null;
-    if (req.file) {
-      attachmentData = {
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        path: req.file.path,
-        size: req.file.size
-      };
-      console.log('📎 Attachment received:', attachmentData);
+    // Handle multiple files
+    let attachments = [];
+    if (req.files && req.files.length > 0) {
+      console.log(`📎 Processing ${req.files.length} attachment(s)`);
+      attachments = req.files.map(file => ({
+        originalName: file.originalname,
+        filename: file.filename,
+        path: file.path,
+        size: file.size
+      }));
     }
 
-    // Validate required fields
-    if (!recordId || !recordType || !status || !updatedBy) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields: recordId, recordType, status, updatedBy'
-      });
-    }
+    console.log('📋 Attachments to process:', attachments);
 
     let updatedRecord;
     
-    // Update the main record with attachment data
-    if (recordType === 'email') {
-      updatedRecord = await EmailLog.updateStatus(recordId, {
-        status,
-        direction,
-        remarks,
-        forwarded_to,
-        cof, 
-        updated_by: updatedBy,
-        attachment: attachmentData
-      });
-    } else if (recordType === 'document') {
+    if (recordType === 'document') {
+      const DocumentLog = require('../models/DocumentLog');
+      // Update to handle multiple attachments
       updatedRecord = await DocumentLog.updateStatus(recordId, {
         status,
         direction,
-        remarks,
         forwarded_to,
         cof,
+        remarks,
         updated_by: updatedBy,
-        attachment: attachmentData
+        attachments: attachments // Send array of attachments
+      });
+    } else if (recordType === 'email') {
+      const EmailLog = require('../models/EmailLog');
+      updatedRecord = await EmailLog.updateStatus(recordId, {
+        status,
+        direction,
+        forwarded_to,
+        cof,
+        remarks,
+        updated_by: updatedBy,
+        attachments: attachments // Send array of attachments
       });
     } else {
       return res.status(400).json({
         success: false,
-        message: 'Invalid record type. Must be "email" or "document"'
+        message: 'Invalid record type'
       });
     }
 
-    if (!updatedRecord) {
-      return res.status(404).json({
-        success: false,
-        message: 'Record not found'
-      });
-    }
-
-    // Create status history entry with attachment reference
+    // Create status history entry
+    const StatusHistory = require('../models/StatusHistory');
     const statusHistory = await StatusHistory.create({
       record_id: recordId,
       record_type: recordType,
       status,
       direction,
-      remarks,
       forwarded_to,
       cof,
+      remarks,
       created_by: updatedBy,
-      attachment_filename: attachmentData ? attachmentData.filename : null
+      // Store attachment information in status history if needed
+      attachment_filename: attachments.length > 0 ? 
+        attachments.map(a => a.originalName).join(', ') : null
     });
 
-    console.log('✅ Status updated successfully. Main record:', updatedRecord);
+    console.log('✅ Status updated successfully');
 
-    // IMPORTANT: Return the complete updated record including file versions
     res.json({
       success: true,
       message: 'Status updated successfully',
       data: {
-        record: updatedRecord, // This should include file_versions and current_file_version
-        history: statusHistory
+        record: updatedRecord,
+        statusHistory
       }
     });
 
   } catch (error) {
-    console.error('❌ Error updating status:', error);
+    console.error('❌ Error in updateStatus:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update status',
