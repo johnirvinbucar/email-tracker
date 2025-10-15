@@ -747,8 +747,8 @@ const handleUpdateStatusSubmit = async () => {
           const fileVersions = selectedReport.file_versions || [];
           const currentVersion = selectedReport.current_file_version || 0;
           
-          console.log('📁 Current file versions:', fileVersions);
-          console.log('🆕 Current version number:', currentVersion);
+          // console.log('📁 Current file versions:', fileVersions);
+          // console.log('🆕 Current version number:', currentVersion);
           
           const newFiles = [];
           const recentFiles = [];
@@ -874,7 +874,12 @@ const handleUpdateStatusSubmit = async () => {
                                 <div className="detail-label">By</div>
                                 <div className="detail-value">{history.created_by || 'System'}</div>
                               </div>
+
+                              
                             </div>
+                            
+
+                            
                             
                             {/* Attachment row */}
                             {history.attachment_filename && (
