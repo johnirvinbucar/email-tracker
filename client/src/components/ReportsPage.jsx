@@ -708,7 +708,7 @@ const handleUpdateStatusSubmit = async () => {
   <div className="info-grid">
     {/* 1st Row: Sender, Document Type */}
     <div className="info-item">
-      <div className="info-label">Biller Maker</div>
+      <div className="info-label">Name</div>
       <div className="info-value">{selectedReport.sender_name}</div>
     </div>
     <div className="info-item">

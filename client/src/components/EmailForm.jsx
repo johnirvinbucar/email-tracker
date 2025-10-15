@@ -408,7 +408,7 @@ const EmailForm = () => {
                 {/* Sender Name Field */}
                 <div className="form-group modern-form-group">
                   <label htmlFor="senderName" className="modern-label">
-                    Biller Maker
+                    Name
                   </label>
                   <input
                     type="text"
@@ -506,12 +506,12 @@ const EmailForm = () => {
                       >
                         <option value="ARE">ARE</option>
                         <option value="BILLS">BILLS</option>
-                        <option value="Commu">Commu</option>
+                        <option value="COMMU">COMMU</option>
                         <option value="IAR">IAR</option>
                         <option value="LEAVE">LEAVE</option>
                         <option value="NTP/CA<">NTP/CA</option>
                         <option value="VOUCHER">VOUCHER</option>
-                        <option value="Training">Training</option>
+                        <option value="TRAINING">TRAINING</option>
                       </select>
                     </div>
 
