@@ -509,7 +509,7 @@ const EmailForm = () => {
                         <option value="COMMU">COMMU</option>
                         <option value="IAR">IAR</option>
                         <option value="LEAVE">LEAVE</option>
-                        <option value="NTP/CA<">NTP/CA</option>
+                        <option value="NTP/CA">NTP/CA</option>
                         <option value="VOUCHER">VOUCHER</option>
                         <option value="TRAINING">TRAINING</option>
                       </select>
